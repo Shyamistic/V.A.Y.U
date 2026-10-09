@@ -1,0 +1,30 @@
+{
+  "fixture_set_version": "demo-2026-07-01-v1",
+  "slot_count": 96,
+  "dt_hours": 0.25,
+  "materialization": {
+    "solar": "0 for slots 0-23 and 72-95; linear 0..1 over 24-48; linear 1..0 over 48-72",
+    "wind": "0.55 + 0.10*sin(2*pi*slot/96) + offsets [-0.04,0.0,0.03], clipped [0.20,0.85]",
+    "critical_process": "34.0 each slot",
+    "shiftable_process": "18.0 outside slots 24-71, 24.0 in slots 24-71",
+    "deferrable_aux": "9.0 outside slots 48-71, 12.0 in slots 48-71",
+    "price": "70.0 + 20.0*sin(2*pi*(slot-20)/96)"
+  },
+  "materialized_profiles_sha256": "a3d02df1fe19f4fa8ef8eb83544752963f60815f2ab1199290eb4f946403ec61",
+  "profile_sha256": {
+    "solar-01": "bbed3670a462c03f349733d705978efcc5e2ec69c89242102328a1eedeb75a9b",
+    "solar-02": "bbed3670a462c03f349733d705978efcc5e2ec69c89242102328a1eedeb75a9b",
+    "solar-03": "bbed3670a462c03f349733d705978efcc5e2ec69c89242102328a1eedeb75a9b",
+    "solar-04": "bbed3670a462c03f349733d705978efcc5e2ec69c89242102328a1eedeb75a9b",
+    "solar-05": "bbed3670a462c03f349733d705978efcc5e2ec69c89242102328a1eedeb75a9b",
+    "wind-01": "f0db1566020d1c39dc5dbca73b9e6558c76a1ada0d4302a029e96b56488a5c49",
+    "wind-02": "d81bb881c88c59d8d18b89e61796f64047e4bf1ac010f30f7ead9a31ede5de53",
+    "wind-03": "a65732e0669daa9c26d3caf96fd697b2955f88777c5af81663fd4835d06fe7d5",
+    "critical_process": "0e38476c7626951d1d1ef7b8ada28865c42bb3ed288a2d93ee35faaf24c1f73b",
+    "shiftable_process": "5931887d87373e346dd78afbbcdf80eaf9cf56c437dc1b60d6d570dd4c1735ef",
+    "deferrable_aux": "82805c0c7d60a79fbc419150178ba6ead5f4c2397b3c4fb28f0061bb24f92b6e",
+    "price": "66ddd8a67c28c9224f3cc0e4c7bddd3b12dbc6a02806450ee2aa08ef8f7ddd14"
+  },
+  "profile_ids": ["solar-01","solar-02","solar-03","solar-04","solar-05","wind-01","wind-02","wind-03","critical_process","shiftable_process","deferrable_aux","price"],
+  "provenance": {"label":"scenario_assumption","source_id":"demo_profiles","source_version":"1","input_refs":[]}
+}

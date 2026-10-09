@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "factor_version": "synthetic-carbon-factor-v1",
+  "carbon_kgco2e_per_mwh": 450.0,
+  "provenance": {
+    "label": "synthetic",
+    "source_id": "carbon-factor-fixture",
+    "source_version": "synthetic-carbon-factor-v1",
+    "content_sha256": "a24d7b42a41f49ddd80efa294f0076955aad26ebb1caf1e12096ce4fe2775896",
+    "input_refs": []
+  }
+}

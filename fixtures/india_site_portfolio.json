@@ -1,0 +1,25 @@
+{
+  "site_portfolio_id": "india-hybrid-portfolio-v1",
+  "fixture_set_version": "assumed-india-site-portfolio-v1",
+  "country": "IN",
+  "sites": [
+    {"asset_id": "bhuj-solar-01", "display_name": "Bhuj Solar 01", "kind": "solar_farm", "latitude": 23.2419, "longitude": 69.6669, "state": "Gujarat", "capacity_mw": 150.0, "capacity_mwh": null, "commissioning_year": 2023, "provenance": {"label": "measured", "source_id": "gazetteer-bhuj", "source_version": "coords-4dp", "input_refs": []}},
+    {"asset_id": "bhuj-bess-01", "display_name": "Bhuj BESS 01", "kind": "bess", "latitude": 23.2419, "longitude": 69.6669, "state": "Gujarat", "capacity_mw": null, "capacity_mwh": 200.0, "commissioning_year": 2024, "provenance": {"label": "measured", "source_id": "gazetteer-bhuj", "source_version": "coords-4dp", "input_refs": []}},
+    {"asset_id": "jaisalmer-wind-01", "display_name": "Jaisalmer Wind 01", "kind": "wind_farm", "latitude": 26.9157, "longitude": 70.9083, "state": "Rajasthan", "capacity_mw": 120.0, "capacity_mwh": null, "commissioning_year": 2022, "provenance": {"label": "measured", "source_id": "gazetteer-jaisalmer", "source_version": "coords-4dp", "input_refs": []}},
+    {"asset_id": "kurnool-solar-01", "display_name": "Kurnool Solar 01", "kind": "solar_farm", "latitude": 15.8281, "longitude": 78.0373, "state": "Andhra Pradesh", "capacity_mw": 100.0, "capacity_mwh": null, "commissioning_year": 2021, "provenance": {"label": "measured", "source_id": "gazetteer-kurnool", "source_version": "coords-4dp", "input_refs": []}}
+  ],
+  "ppa_terms": [
+    {"ppa_id": "ppa-fdre-a", "counterparty_id": "discom-gujarat", "tariff_usd_per_mwh": 72.0, "committed_cuf_fraction": 0.30, "peak_window_slots": [68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83], "shortfall_penalty_usd_per_mwh": 140.0, "excess_payment_fraction": 0.25, "relaxation_allowance_fraction": 0.10, "term_start_utc": "2026-01-01T00:00:00Z", "term_end_utc": "2051-01-01T00:00:00Z", "provenance": {"label": "scenario_assumption", "source_id": "india-ppa-fixture", "source_version": "assumed-india-site-portfolio-v1", "input_refs": []}}
+  ],
+  "obligations": [
+    {"obligation_id": "fdre-peak-block-india", "obligation_type": "peak_window_energy", "committed_value": 240.0, "committed_unit": "MWh", "measurement_period_start_utc": "2026-07-01T17:00:00Z", "measurement_period_end_utc": "2026-07-01T21:00:00Z", "peak_window_slots": [68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83], "relaxation_allowance_fraction": 0.10, "shortfall_penalty_usd_per_mwh": 140.0, "reference_capacity_mw": null, "provenance": {"label": "scenario_assumption", "source_id": "india-obligation-fixture", "source_version": "assumed-india-site-portfolio-v1", "input_refs": []}}
+  ],
+  "flexibility_contracts": [
+    {"contract_id": "flex-bhuj-aux", "load_id": "bhuj-aux-load", "shed_cost_usd_per_mwh": 180.0, "shift_cost_usd_per_mwh": 25.0, "notice_period_slots": 2, "max_events_per_period": 4, "measurement_period_slots": 96, "rebound_obligation_mwh": 5.0, "rebound_window_slots": [84, 85, 86, 87], "provenance": {"label": "scenario_assumption", "source_id": "india-flex-fixture", "source_version": "assumed-india-site-portfolio-v1", "input_refs": []}}
+  ],
+  "storage_warranties": [
+    {"asset_id": "bhuj-bess-01", "cycle_budget_count": 6000, "throughput_budget_mwh": 480000.0, "calendar_life_years": 15.0, "max_depth_of_discharge_fraction": 0.90, "max_c_rate_charge": 0.5, "max_c_rate_discharge": 0.5, "warranty_start_utc": "2024-01-01T00:00:00Z", "provenance": {"label": "scenario_assumption", "source_id": "india-warranty-fixture", "source_version": "assumed-india-site-portfolio-v1", "input_refs": []}}
+  ],
+  "dsm_classification": {"bhuj-solar-01": "solar", "bhuj-bess-01": "bess", "jaisalmer-wind-01": "wind", "kurnool-solar-01": "solar"},
+  "provenance": {"label": "scenario_assumption", "source_id": "india-site-portfolio-fixture", "source_version": "assumed-india-site-portfolio-v1", "input_refs": []}
+}

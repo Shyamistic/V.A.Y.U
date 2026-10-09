@@ -1,0 +1,4 @@
+[
+  {"kind":"bess","asset_id":"bess-invalid","display_name":"Invalid BESS","node_id":"node-bess","region":"test","capacity_mwh":20.0,"charge_rate_mw":8.0,"discharge_rate_mw":8.0,"eta_c":0.95,"eta_d":0.92,"initial_energy_mwh":3.0,"reserve_mwh":4.0,"provenance":{"label":"scenario_assumption","source_id":"fixture","source_version":"1","input_refs":[]}},
+  {"regime":"monsoon","context_timestamp":"2026-01-01T00:00:00Z","source_version":"fixture","quality":"fresh","power_mw":4.0,"provenance":{"label":"scenario_assumption","source_id":"fixture","source_version":"1","input_refs":[]}}
+]

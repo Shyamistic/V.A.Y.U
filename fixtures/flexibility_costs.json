@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "flexibility_cost_version": "assumed-flexibility-cost-v1",
+  "currency": "USD",
+  "entries": [
+    {"load_id": "critical_process", "shed_cost_usd_per_mwh": 0.0, "shift_cost_usd_per_mwh": 0.0},
+    {"load_id": "deferrable_aux", "shed_cost_usd_per_mwh": 180.0, "shift_cost_usd_per_mwh": 25.0},
+    {"load_id": "shiftable_process", "shed_cost_usd_per_mwh": 320.0, "shift_cost_usd_per_mwh": 45.0}
+  ],
+  "source_note": "Illustrative industrial value-of-lost-load and deferral costs. SCENARIO ASSUMPTION; not derived from any tariff, contract, or survey. Replace before any commercial use.",
+  "provenance": {
+    "label": "scenario_assumption",
+    "source_id": "flexibility-cost-fixture",
+    "source_version": "assumed-flexibility-cost-v1",
+    "content_sha256": "f43df4de7dd794d4c8293bd0b33884abe89c005d7f1814b9cb0a240550df873a",
+    "input_refs": []
+  }
+}

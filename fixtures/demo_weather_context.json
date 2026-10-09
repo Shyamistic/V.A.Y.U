@@ -1,0 +1,8 @@
+{
+  "schema_version":"1.0",
+  "regime":"monsoon",
+  "context_timestamp":"2026-07-01T00:00:00Z",
+  "source_version":"synthetic-weather-context-v1",
+  "quality":"fresh",
+  "provenance":{"label":"scenario_assumption","source_id":"demo_weather_context","source_version":"1","input_refs":[]}
+}

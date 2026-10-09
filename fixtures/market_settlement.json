@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "settlement_version": "assumed-market-settlement-v1",
+  "currency": "USD",
+  "submission_lag_slots": 4,
+  "auction_session_slots": 2,
+  "nonmarket_export_label": "deemed_export_no_market_commitment",
+  "nonmarket_export_rate_usd_per_mwh": 0.0,
+  "source_note": "Physical export with no matching market commitment is valued at a labelled non-market rate, shipped at zero. SCENARIO ASSUMPTION: an operator-specific avoided-cost or deemed-generation rate may apply and must be supplied here, not in code. IEX RTM structural parameters (half-hour sessions, 15-minute blocks, one-hour delivery lag) are modelled from the published market structure; no clearing price or fee here is a claim about any actual auction.",
+  "provenance": {
+    "label": "scenario_assumption",
+    "source_id": "market-settlement-fixture",
+    "source_version": "assumed-market-settlement-v1",
+    "content_sha256": "9fd7645b5120e199a910f31b7d8302a6742308af13ef793ae0e33e2fab3d38e2",
+    "input_refs": []
+  }
+}

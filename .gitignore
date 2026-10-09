@@ -1,0 +1,24 @@
+# Runtime, regenerable
+runtime/site-packages/
+runtime/wheels/
+runtime/store/
+runtime/determinism-a/
+runtime/determinism-b/
+runtime/logs/
+runtime/keys/
+runtime/artifacts/
+runtime/cache/
+runtime/provenance/
+runtime-plan/
+runtime-gates/
+runtime-ci/
+# Caches and build
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+# Local config and foreign toolchains
+.env
+node_modules/
+# Pre-existing
+data/

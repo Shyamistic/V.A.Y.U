@@ -1,0 +1,1 @@
+{"schema_version":"1.0","fixture_set_version":"demo-2026-07-01-v1","method_version":"baseline-quantile-v1","variables":["solar","wind","demand","price"],"slot_count":96,"labels":["synthetic","scenario_assumption"],"provenance":{"label":"scenario_assumption","source_id":"demo_forecasts","source_version":"1","input_refs":[]}}

@@ -1,0 +1,21 @@
+{
+  "body_base64": "eyJsYXRpdHVkZSI6MjMuMjMzNzQyLCJsb25naXR1ZGUiOjY5LjYyMjY0LCJnZW5lcmF0aW9udGltZV9tcyI6MS40OTE0Mjc0MjE1Njk4MjQyLCJ1dGNfb2Zmc2V0X3NlY29uZHMiOjAsInRpbWV6b25lIjoiR01UIiwidGltZXpvbmVfYWJicmV2aWF0aW9uIjoiR01UIiwiZWxldmF0aW9uIjoxMDcuMCwiaG91cmx5X3VuaXRzIjp7InRpbWUiOiJpc284NjAxIiwic2hvcnR3YXZlX3JhZGlhdGlvbiI6IlcvbcKyIiwidGVtcGVyYXR1cmVfMm0iOiLCsEMifSwiaG91cmx5Ijp7InRpbWUiOlsiMjAyNC0wNy0wMVQwMDowMCIsIjIwMjQtMDctMDFUMDE6MDAiLCIyMDI0LTA3LTAxVDAyOjAwIiwiMjAyNC0wNy0wMVQwMzowMCIsIjIwMjQtMDctMDFUMDQ6MDAiLCIyMDI0LTA3LTAxVDA1OjAwIiwiMjAyNC0wNy0wMVQwNjowMCIsIjIwMjQtMDctMDFUMDc6MDAiLCIyMDI0LTA3LTAxVDA4OjAwIiwiMjAyNC0wNy0wMVQwOTowMCIsIjIwMjQtMDctMDFUMTA6MDAiLCIyMDI0LTA3LTAxVDExOjAwIiwiMjAyNC0wNy0wMVQxMjowMCIsIjIwMjQtMDctMDFUMTM6MDAiLCIyMDI0LTA3LTAxVDE0OjAwIiwiMjAyNC0wNy0wMVQxNTowMCIsIjIwMjQtMDctMDFUMTY6MDAiLCIyMDI0LTA3LTAxVDE3OjAwIiwiMjAyNC0wNy0wMVQxODowMCIsIjIwMjQtMDctMDFUMTk6MDAiLCIyMDI0LTA3LTAxVDIwOjAwIiwiMjAyNC0wNy0wMVQyMTowMCIsIjIwMjQtMDctMDFUMjI6MDAiLCIyMDI0LTA3LTAxVDIzOjAwIl0sInNob3J0d2F2ZV9yYWRpYXRpb24iOlswLjAsMS4wLDM2LjAsMTc5LjAsMjcyLjAsMzQyLjAsNDIzLjAsNDc3LjAsNTQxLjAsMzIxLjAsMzIzLjAsMTU3LjAsMTM4LjAsNjguMCwyNC4wLDAuMCwwLjAsMC4wLDAuMCwwLjAsMC4wLDAuMCwwLjAsMC4wXSwidGVtcGVyYXR1cmVfMm0iOlsyNy4xLDI3LjIsMjcuOCwyOC42LDI5LjEsMzAuMCwzMC45LDMxLjMsMjkuOCwyOS43LDI5LjksMjkuNSwyOS40LDI3LjgsMjcuNiwyNy4zLDI3LjQsMjcuNiwyNy4wLDI3LjQsMjguMCwyNy45LDI3LjksMjcuOV19fQ==",
+  "cache_version": 1,
+  "request": {
+    "end_date": "2024-07-01",
+    "issue_date": "2024-06-30",
+    "latitude": 23.2419,
+    "longitude": 69.6669,
+    "site_id": "bhuj-solar",
+    "start_date": "2024-07-01",
+    "variables": [
+      "shortwave_radiation",
+      "temperature_2m"
+    ]
+  },
+  "response_content_sha256": "7c0a95060b022dd93714a8cf8bce047b6c889ab8d0ffb727da0d9b1fdb99704b",
+  "retrieved_at_utc": "2026-10-09T10:59:43.039246Z",
+  "source_attribution": "Weather data by Open-Meteo.com, licensed under CC BY 4.0 (https://open-meteo.com/).",
+  "source_id": "openmeteo",
+  "url": "https://historical-forecast-api.open-meteo.com/v1/forecast?latitude=23.2419&longitude=69.6669&start_date=2024-07-01&end_date=2024-07-01&hourly=shortwave_radiation,temperature_2m&windspeed_unit=ms&timezone=UTC"
+}

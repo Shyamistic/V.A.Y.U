@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "regime_version": "assumed-dsm-slabs-v1",
+  "currency": "USD",
+  "regimes": [
+    {
+      "regime_id": "pre-2026-04-01",
+      "effective_from": "2024-01-01",
+      "effective_until": "2026-03-31",
+      "technologies": {
+        "solar": {
+          "tolerance_band_fraction": 0.1,
+          "slabs": [
+            {
+              "lower_fraction": 0.1,
+              "upper_fraction": 0.2,
+              "rate_multiplier": 0.1
+            },
+            {
+              "lower_fraction": 0.2,
+              "upper_fraction": 0.3,
+              "rate_multiplier": 0.2
+            },
+            {
+              "lower_fraction": 0.3,
+              "upper_fraction": null,
+              "rate_multiplier": 0.3
+            }
+          ]
+        },
+        "wind": {
+          "tolerance_band_fraction": 0.15,
+          "slabs": [
+            {
+              "lower_fraction": 0.15,
+              "upper_fraction": 0.25,
+              "rate_multiplier": 0.1
+            },
+            {
+              "lower_fraction": 0.25,
+              "upper_fraction": 0.35,
+              "rate_multiplier": 0.2
+            },
+            {
+              "lower_fraction": 0.35,
+              "upper_fraction": null,
+              "rate_multiplier": 0.3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "regime_id": "post-2026-04-01",
+      "effective_from": "2026-04-01",
+      "effective_until": null,
+      "technologies": {
+        "solar": {
+          "tolerance_band_fraction": 0.05,
+          "slabs": [
+            {
+              "lower_fraction": 0.05,
+              "upper_fraction": 0.15,
+              "rate_multiplier": 0.15
+            },
+            {
+              "lower_fraction": 0.15,
+              "upper_fraction": 0.25,
+              "rate_multiplier": 0.3
+            },
+            {
+              "lower_fraction": 0.25,
+              "upper_fraction": null,
+              "rate_multiplier": 0.45
+            }
+          ]
+        },
+        "wind": {
+          "tolerance_band_fraction": 0.1,
+          "slabs": [
+            {
+              "lower_fraction": 0.1,
+              "upper_fraction": 0.2,
+              "rate_multiplier": 0.15
+            },
+            {
+              "lower_fraction": 0.2,
+              "upper_fraction": 0.3,
+              "rate_multiplier": 0.3
+            },
+            {
+              "lower_fraction": 0.3,
+              "upper_fraction": null,
+              "rate_multiplier": 0.45
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "source_note": "MECHANISM is modelled from the CERC Deviation Settlement Mechanism and Related Matters Regulations, 2024: the wind/solar error metric is normalized to Available Capacity per 15-minute block, charges apply in slabs rising with absolute error, and tolerance bands tighten effective 1 April 2026 (solar 10% -> 5%, wind 15% -> 10%). The numeric rate_multiplier values in this file, and any reference_rate_usd_per_mwh supplied to the calculator, are ILLUSTRATIVE SCENARIO ASSUMPTIONS pending verification against the notified regulation and its annual escalation schedule through 2031. They are not regulatory fact. The real regime is expressed in INR/kWh; no FX conversion is performed anywhere in this codebase, and introducing one would itself require a versioned FX fixture. Replace these values before any commercial, regulatory, or settlement use.",
+  "provenance": {
+    "label": "scenario_assumption",
+    "source_id": "dsm-regime-fixture",
+    "source_version": "assumed-dsm-slabs-v1",
+    "content_sha256": "be9292f5f30ef40250f7ef64f406ff1db6c54756959d0d57c39d18c54e9bb560",
+    "input_refs": []
+  }
+}

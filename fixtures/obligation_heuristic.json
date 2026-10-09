@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "heuristic_version": "assumed-obligation-heuristic-v1",
+  "comfort_margin_fraction": 0.05,
+  "risk_floor_fraction": 0.0,
+  "urgency_exponent": 1.0,
+  "price_cap_multiplier": 1.0,
+  "source_note": "Placeholder heuristic parameters. SCENARIO ASSUMPTION. The principled value of obligation_shadow_price_usd_per_mwh is a dual variable from a multistage stochastic programme; this linear ramp on projected attainment is a stand-in that is deliberately simple, deterministic, and reimplementable from the design document.",
+  "provenance": {
+    "label": "scenario_assumption",
+    "source_id": "obligation-heuristic-fixture",
+    "source_version": "assumed-obligation-heuristic-v1",
+    "content_sha256": "638b0be2a175db7fa0b411fb54121a9e3397e75df0dc7ea57ea188e99fac8302",
+    "input_refs": []
+  }
+}

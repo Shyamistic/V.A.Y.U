@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "obligation_set_version": "assumed-fdre-obligation-v1",
+  "obligations": [{
+    "obligation_id": "fdre-peak-block-a",
+    "obligation_type": "peak_window_energy",
+    "committed_value": 24.0,
+    "committed_unit": "MWh",
+    "measurement_period_start_utc": "2026-07-01T17:00:00Z",
+    "measurement_period_end_utc": "2026-07-01T21:00:00Z",
+    "peak_window_slots": [68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83],
+    "relaxation_allowance_fraction": 0.10,
+    "shortfall_penalty_usd_per_mwh": 140.0,
+    "reference_capacity_mw": null,
+    "provenance": {"label": "scenario_assumption", "source_id": "demo-obligation-fixture", "source_version": "assumed-fdre-obligation-v1", "input_refs": []}
+  }],
+  "source_note": "Shape only. SECI FDRE tenders have specified assured peak-window blocks (for example 4,800 MWh as 1,200 MW over 4 h, amended to 6,000 MWh as 1,500 MW over 4 h) with relaxation allowances up to 25%, and awarded FDRE tariffs have clustered around INR 5.26-6.28/unit. Those figures informed the SHAPE of this obligation; the committed energy, relaxation fraction, and penalty rate here are scaled scenario assumptions for a 96-slot demo portfolio and are NOT a claim about any specific tender or contract."
+}

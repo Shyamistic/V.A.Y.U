@@ -1,0 +1,21 @@
+{
+  "body_base64": "eyJ0eXBlIjoiRmVhdHVyZSIsImdlb21ldHJ5Ijp7InR5cGUiOiJQb2ludCIsImNvb3JkaW5hdGVzIjpbNjkuNjY3LDIzLjI0Miw3Mi4wM119LCJwcm9wZXJ0aWVzIjp7InBhcmFtZXRlciI6eyJUMk0iOnsiMjAyNDA3MDEwMCI6MjguNjUsIjIwMjQwNzAxMDEiOjI5LjAxLCIyMDI0MDcwMTAyIjoyOS43NywiMjAyNDA3MDEwMyI6MzAuNiwiMjAyNDA3MDEwNCI6MzEuMzQsIjIwMjQwNzAxMDUiOjMxLjc3LCIyMDI0MDcwMTA2IjozMS44OCwiMjAyNDA3MDEwNyI6MzIuMTksIjIwMjQwNzAxMDgiOjMyLjU0LCIyMDI0MDcwMTA5IjozMi43NSwiMjAyNDA3MDExMCI6MzIuNjIsIjIwMjQwNzAxMTEiOjMyLjM5LCIyMDI0MDcwMTEyIjozMS43NSwiMjAyNDA3MDExMyI6MzAuNzgsIjIwMjQwNzAxMTQiOjI5Ljk4LCIyMDI0MDcwMTE1IjoyOS43LCIyMDI0MDcwMTE2IjoyOS41MiwiMjAyNDA3MDExNyI6MjkuMzUsIjIwMjQwNzAxMTgiOjI5LjE1LCIyMDI0MDcwMTE5IjoyOS4wLCIyMDI0MDcwMTIwIjoyOC44NywiMjAyNDA3MDEyMSI6MjguNjksIjIwMjQwNzAxMjIiOjI4LjUsIjIwMjQwNzAxMjMiOjI4LjMyfSwiV1MxME0iOnsiMjAyNDA3MDEwMCI6NC4zOSwiMjAyNDA3MDEwMSI6NC40MSwiMjAyNDA3MDEwMiI6NC43MSwiMjAyNDA3MDEwMyI6NC44MywiMjAyNDA3MDEwNCI6NC43MSwiMjAyNDA3MDEwNSI6NC40NCwiMjAyNDA3MDEwNiI6NC4yLCIyMDI0MDcwMTA3Ijo0LjE4LCIyMDI0MDcwMTA4Ijo0LjM4LCIyMDI0MDcwMTA5Ijo0Ljc0LCIyMDI0MDcwMTEwIjo1LjI0LCIyMDI0MDcwMTExIjo1LjY3LCIyMDI0MDcwMTEyIjo1Ljk3LCIyMDI0MDcwMTEzIjo1LjY5LCIyMDI0MDcwMTE0Ijo1LjM1LCIyMDI0MDcwMTE1Ijo1LjcyLCIyMDI0MDcwMTE2Ijo1Ljk2LCIyMDI0MDcwMTE3Ijo2LjIxLCIyMDI0MDcwMTE4Ijo2LjQ0LCIyMDI0MDcwMTE5Ijo2LjczLCIyMDI0MDcwMTIwIjo2Ljk3LCIyMDI0MDcwMTIxIjo3LjI4LCIyMDI0MDcwMTIyIjo3LjUsIjIwMjQwNzAxMjMiOjcuNTh9fX0sImhlYWRlciI6eyJ0aXRsZSI6Ik5BU0EvUE9XRVIgU291cmNlIE5hdGl2ZSBSZXNvbHV0aW9uIEhvdXJseSBEYXRhIiwiYXBpIjp7InZlcnNpb24iOiJ2Mi4xMC4yIiwibmFtZSI6IlBPV0VSIEhvdXJseSBBUEkifSwic291cmNlcyI6WyJNRVJSQTIiLCJQT1dFUiJdLCJmaWxsX3ZhbHVlIjotOTk5LjAsInRpbWVfc3RhbmRhcmQiOiJVVEMiLCJzdGFydCI6IjIwMjQwNzAxIiwiZW5kIjoiMjAyNDA3MDEifSwibWVzc2FnZXMiOltdLCJwYXJhbWV0ZXJzIjp7IlQyTSI6eyJ1bml0cyI6IkMiLCJsb25nbmFtZSI6IlRlbXBlcmF0dXJlIGF0IDIgTWV0ZXJzIn0sIldTMTBNIjp7InVuaXRzIjoibS9zIiwibG9uZ25hbWUiOiJXaW5kIFNwZWVkIGF0IDEwIE1ldGVycyJ9fSwidGltZXMiOnsiZGF0YSI6MC4yNDgsInByb2Nlc3MiOjAuMDN9fQ==",
+  "cache_version": 1,
+  "request": {
+    "end_date": "2024-07-01",
+    "issue_date": null,
+    "latitude": 23.2419,
+    "longitude": 69.6669,
+    "site_id": "bhuj-solar",
+    "start_date": "2024-07-01",
+    "variables": [
+      "temperature_2m",
+      "wind_speed_10m"
+    ]
+  },
+  "response_content_sha256": "9b47dbbd7aac39af87b542d59eaa2ee1889295c9d3da8653ff1349133a6b2599",
+  "retrieved_at_utc": "2026-10-09T10:59:46.603736Z",
+  "source_attribution": "These data were obtained from the NASA Langley Research Center POWER Project (https://power.larc.nasa.gov/). Public domain with POWER project citation.",
+  "source_id": "nasa-power",
+  "url": "https://power.larc.nasa.gov/api/temporal/hourly/point?parameters=T2M,WS10M&community=RE&longitude=69.6669&latitude=23.2419&start=20240701&end=20240701&format=JSON&time-standard=UTC"
+}
