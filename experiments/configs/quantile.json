@@ -1,0 +1,18 @@
+{
+  "experiment": "quantile_training",
+  "seed": 20260101,
+  "total_budget_hours": 2.0,
+  "taus": [0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.98],
+  "gbm": {
+    "n_rounds": 400,
+    "learning_rate": 0.05,
+    "max_depth": 3,
+    "min_samples_leaf": 50,
+    "n_bins": 32,
+    "patience": 30
+  },
+  "linear": { "l1_ridge": 0.01 },
+  "min_train_samples": 500,
+  "model_selection": "validation_pinball",
+  "_assumptions": "every value here is a scenario_assumption per design \u00a717"
+}

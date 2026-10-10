@@ -486,9 +486,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
-    from .api import app
     import uvicorn
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    uvicorn.run("deploy.asgi:app", app_dir=str(PRODUCT_ROOT), host=args.host, port=args.port, log_level="warning")
     return 0
 
 

@@ -12,6 +12,7 @@ runtime/provenance/
 runtime-plan/
 runtime-gates/
 runtime-ci/
+runtime-tests/
 # Caches and build
 __pycache__/
 .pytest_cache/
@@ -20,5 +21,18 @@ __pycache__/
 # Local config and foreign toolchains
 .env
 node_modules/
+src/monsoon_grid/ui/dist/
+runtime/research-site-packages/
 # Pre-existing
 data/
+
+# --- Public repo hygiene (added for GitHub showcase) ---
+# Heavy raw research data (regenerable via experiments/run_fetch_datasets.py)
+experiments/data_samples/
+# Live demo deployment config carries a bearer token; keep it out of the public repo
+deploy/cloudrun-demo.yaml
+# Screenshot artifacts captured during development
+runtime/*.png
+# Internal AI-pipeline and IDE workflow artifacts
+.agents/
+.kiro/

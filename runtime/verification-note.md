@@ -1,6 +1,73 @@
 # MonsoonGrid verification note
 
-This is the final local verification record for the remediated MonsoonGrid implementation. All Python execution used only:
+## Current verification: 2026-10-09
+
+This section supersedes the historical record below. Results were observed against
+the current working tree, including pre-existing uncommitted changes. No commit,
+dependency installation, cloud mutation, API wiring, or frontend rebuild was performed.
+
+All Python commands used the supplied `.venv/Scripts/python.exe` with product
+`src;runtime/site-packages` on `PYTHONPATH`; no packages were installed into `.venv`.
+
+### Commands and observed results
+
+- `& .\monsoon_grid\scripts\run_demo.ps1 -Seed 20260701 -Policy balanced -Deadline 285`
+   passed and regenerated `runtime/artifacts/` and its backing evidence store.
+   Internal elapsed time: 76.406268 seconds; wrapper: 78.751700 seconds.
+   Replay: `replay-20260701-balanced`, 96 slots, `scenario-02`, adapter `DISABLED`.
+   Planner fallbacks: 3; applied fallbacks: 2; unsafe rejections: 2; approval events: 94.
+- `& .\monsoon_grid\scripts\verify_certificate.ps1 -CertificatePath .\monsoon_grid\runtime\artifacts\certificate.json`
+   passed: `verified=true`, `offline_replay=true`, `persistence_consistent=true`,
+   manifest count 17. Pinned fingerprint:
+   `56475aa75463474c0285df5dbf2bcab73da651358839e9b77481b2eab107708c`.
+   Unsigned certificate digest:
+   `61e607ef5e75f45724f074adc96dc4051b101eed19493265fee783527130e9c2`.
+- `& .\monsoon_grid\scripts\test.ps1` passed with one skip and no failures.
+   A separate `pytest --collect-only -o addopts= -q monsoon_grid/tests` collected
+   350 tests: 349 passed, 1 skipped in the full run. A Starlette/AnyIO
+   deprecation warning was emitted.
+- `& .\monsoon_grid\scripts\check_gates.ps1 -Seed 20260701 -Policy balanced`
+   passed Ruff across `src` and `tests` and the gate harness. G1, G2, G6, G9,
+   and G10: PASS/BLOCKING. G3: WARN/non-blocking, with one committed variable
+   deviating across scenarios. Summary: `PASS (G3 is non-blocking)`.
+   An earlier gate invocation was interrupted and is not counted as verification.
+   Gate artifacts use the separate `runtime-gates/` root, not the demo root.
+
+### Regenerated demo metrics
+
+Values below were parsed from `runtime/artifacts/metrics.json`, not copied from
+tests or the separate gate replay. Units and provenance are present in that artifact.
+
+| Metric | Value | Unit |
+| --- | ---: | --- |
+| net_cost_usd | 17328.526106 | USD |
+| critical_unserved_mwh | 17.502473 | MWh |
+| noncritical_unserved_mwh | 15.833178 | MWh |
+| dr_shed_mwh | 0.021267 | MWh |
+| dr_shift_mwh | 0 | MWh |
+| dr_rebound_mwh | 0 | MWh |
+| dr_cost_usd | 3.82797 | USD |
+| market_revenue_usd | 1324.48 | USD |
+| nonmarket_export_valuation_usd | 0 | USD |
+
+The obsolete negative net cost and zero critical-unserved values no longer describe
+the refreshed demo artifact. These are synthetic simulation results, not measured
+plant performance, realized market returns, or regulatory-verified economics.
+
+### Boundaries and remaining work
+
+The service is simulation/replay only, with no live control or market submission.
+The G3 non-anticipativity gap remains unresolved. Auth, observability, and tenancy
+integration in `api.py`, and a redesigned frontend, were not implemented here.
+Docker/cloud deployment, browser validation, a fresh two-run determinism comparison,
+and a fresh protected-input inventory comparison were not performed in this refresh.
+Historical results below are not evidence that those checks passed on today's tree.
+
+## Historical Verification (Superseded)
+
+The following is the prior local verification record, preserved for historical
+context only. Its test counts, replay results, and digests are not current. All
+Python execution in that record used only:
 
 `C:\Users\shyam.BATCONSOLE\Desktop\etgenai\.venv\Scripts\python.exe`
 

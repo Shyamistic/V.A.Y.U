@@ -1,0 +1,19 @@
+{
+  "experiment": "scenario_study",
+  "seed": 20260101,
+  "total_budget_hours": 2.0,
+  "n_raw": 1000,
+  "k_values": [5, 20, 50, 200],
+  "k_default": 20,
+  "bootstrap_block_hours": 2,
+  "bootstrap_block_sweep_hours": [1, 2, 6, 24],
+  "temporal_lag_truncation_steps": 16,
+  "higham_eig_floor": 1e-10,
+  "ks_reject_threshold": 0.10,
+  "tail_margin_mw": 0.5,
+  "tail_ratio_margin": 1.02,
+  "stability_seeds": 5,
+  "d_dimension": 12,
+  "method_default": "block_bootstrap",
+  "_assumptions": "every value here is a scenario_assumption per design \u00a717"
+}

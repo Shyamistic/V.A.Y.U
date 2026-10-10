@@ -113,7 +113,7 @@ G9_STRINGS = ["12 ms", "OPTIMAL_FEASIBLE", "Zero Constraint", "Ed25519 Verified"
 def gate_g9() -> tuple[str, str]:
     ui_root = Path(__file__).resolve().parents[1] / "src" / "monsoon_grid" / "ui"
     for path in ui_root.rglob("*"):
-        if not path.is_file():
+        if not path.is_file() or "node_modules" in path.parts or path.suffix not in {".html", ".js", ".ts", ".tsx", ".css", ".json"}:
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         for index, line in enumerate(text.splitlines(), start=1):

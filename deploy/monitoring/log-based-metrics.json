@@ -1,0 +1,15 @@
+{
+  "comment": "Log-based metric definitions (design §7.2, §3). Derived from the JSON log stream rather than a GMP sidecar: zero extra infrastructure, coarser histogram fidelity, billed on log volume. /_ops/metrics remains for local scraping and a future Managed Service for Prometheus upgrade.",
+  "metrics": [
+    {"name": "monsoongrid_requests_total", "type": "counter", "filter": "jsonPayload.event=\"request.completed\"", "labels": ["route", "method", "status", "status_class"]},
+    {"name": "monsoongrid_request_latency", "type": "distribution", "valueField": "jsonPayload.latency_ms", "filter": "jsonPayload.event=\"request.completed\"", "labels": ["route", "method"]},
+    {"name": "monsoongrid_auth_failures_total", "type": "counter", "filter": "jsonPayload.event=\"auth_failure\"", "labels": ["reason"]},
+    {"name": "monsoongrid_authz_denials_total", "type": "counter", "filter": "jsonPayload.event=\"authz_denied\"", "labels": ["route", "required_role"]},
+    {"name": "monsoongrid_approval_rejections_total", "type": "counter", "filter": "jsonPayload.event=\"approval_rejected\"", "labels": ["code"]},
+    {"name": "monsoongrid_rate_limited_total", "type": "counter", "filter": "jsonPayload.event=\"rate_limit\"", "labels": ["rate_class", "scope"]},
+    {"name": "monsoongrid_planner_fallback_total", "type": "counter", "filter": "jsonPayload.event=\"planner_fallback\"", "labels": ["policy_mode", "fallback_reason"]},
+    {"name": "monsoongrid_validator_decisions_total", "type": "counter", "filter": "jsonPayload.event=\"validator_decision\"", "labels": ["status"]},
+    {"name": "monsoongrid_certificate_operations_total", "type": "counter", "filter": "jsonPayload.event=\"certificate_operation\"", "labels": ["operation", "outcome", "failure_code"]},
+    {"name": "monsoongrid_audit_records_total", "type": "counter", "filter": "jsonPayload.audit=true", "labels": ["event_type"]}
+  ]
+}

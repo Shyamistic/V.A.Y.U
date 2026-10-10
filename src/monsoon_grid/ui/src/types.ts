@@ -1,0 +1,57 @@
+export type Asset = { asset_id: string; kind: string; capacity_mw?: number; capacity_mwh?: number; reserve_mwh?: number };
+export type Slot = {
+  slot_index: number; timestamp_utc: string; renewable_available_mw: number; renewable_dispatch_mw: number;
+  demand_mw: number; import_mw: number; export_mw: number; flow_mw: number;
+  bess_energy_mwh: Record<string, number>; bess_soc_fraction: Record<string, number>;
+  critical_unserved_mwh: number; noncritical_unserved_mwh: number; cost_usd: number;
+  action_applied: boolean; event_ids: string[]; curtailment_mwh: number;
+};
+export type Decision = { slot_index: number; decision_id: string; status: string; violations: { code: string; message: string; severity: string }[]; recovery_options: string[]; proposal_digest: string };
+export type Metric = { name: string; value: number | null; unit: string | null; status: string; reason?: string; provenance: { label: string } };
+export type ScenarioPath = { scenario_id: string; renewable_available_mw: Record<string, number[]>; price_usd_per_mwh: number[]; demand_mw: Record<string, number[]> };
+export type Workspace = {
+  portfolio: { assets: Asset[] };
+  replay: { replay_id: string; seed: number; fixture_set_hash: string; policy_mode: string; realized_path_id: string; slot_states: Slot[]; decisions: Decision[]; scenario_set: { paths: ScenarioPath[] } };
+  summary: { planned_fallback_count: number; unsafe_rejections: number; policy_mode: string };
+  metrics: { values: Metric[] };
+  certificate: { certificate_id: string; unsigned_digest: string; [key: string]: unknown };
+  scope: string; layout: string; limitations: string[];
+  forecasts: ForecastBand[];
+  events: FixtureEvent[];
+  obligations: { obligation_id: string; obligation_type: string; committed_value: number; committed_unit: string; shortfall_penalty_usd_per_mwh: number; peak_window_slots: number[] }[];
+  asset_series: { generation_mw: Record<string, number[]>; demand_mw: Record<string, number[]>; bess_available: Record<string, boolean[]>; tie_capacity_mw: number[] };
+  science: { status: string; reports: ScientificReport[]; issues: string[] };
+  forecast_integration: string;
+  hardware: { connection: string; mode: string; config: Record<string, number>; cases: { case_id: string; frame: BenchFrame }[] };
+  scale_projection: ScaleProjection;
+};
+export type ScaleRow = { metric: string; unit_value: number; city_value: number; unit: string; preserved_under_replication: boolean; note: string };
+export type HardwareNode = { node_id: string; role: string; covers: string[]; sensors: string[]; uplink: string; note: string };
+export type ScaleProjection = {
+  fleet_units: number;
+  unit_asset_counts: Record<string, number>;
+  city_asset_counts: Record<string, number>;
+  comparison: ScaleRow[];
+  hardware_nodes: HardwareNode[];
+  preserved_properties: string[];
+  requires_restudy: string[];
+  disclaimer: string;
+};
+export type ForecastBand = { asset_id: string | null; forecast_id: string; variable: string; model_version: string; unit: string; p10: number[]; p50: number[]; p90: number[] };
+export type FixtureEvent = { event_id: string; event_type: string; start_slot: number; end_slot: number; affected_ids: string[]; details: Record<string, unknown> };
+export type ScientificReport = { experiment: string; artifact: string; artifact_digest: string; history_count: number; result: Record<string, unknown> };
+export type BenchFrame = { frame_sequence: number; timestamp_utc: string; bus_voltage_v: number; bus_current_a: number; bus_power_w: number; bench_state: string; failsafe_tripped: boolean; relay_critical_enabled: boolean; relay_flex_a_enabled: boolean; relay_flex_b_enabled: boolean; digest: string };
+export type Session = { actor_id: string; tenant_id: string; roles: string[]; auth_method: string; environment: string };
+export type AgentStep = { iteration: number; objective_order: string[]; rationale: string; confidence: number; validator_status: string; critical_unserved_mwh: number; net_cost_usd: number; accepted: boolean; revised_reason: string | null };
+export type AgentAction = { category: string; action: string; target: string; magnitude_mw: number; unit: string; driver_objective: string; note: string };
+export type AgentDecision = {
+  replay_id: string; slot_index: number; brain: string;
+  features: { renewable_available_mw: number; demand_mw: number; net_margin_mw: number; price_usd_per_mwh: number; forecast_band_width_mw: number; uncertainty_ratio: number; bess_soc_fraction: number; bess_outage: boolean; tie_derated: boolean; weather_event: boolean; demand_spike: boolean };
+  chosen_objective_order: string[]; rationale: string; confidence: number; steps: AgentStep[];
+  actions: AgentAction[]; conflict_note: string;
+  preset_policy: string; preset_net_cost_usd: number; preset_critical_unserved_mwh: number;
+  agent_net_cost_usd: number; agent_critical_unserved_mwh: number;
+  cost_regret_usd: number; reliability_regret_mwh: number; forbidden_tools_blocked: string[]; digest: string; scope: string;
+};
+export type Proposal = { decision_id: string; [key: string]: unknown };
+export type Interactive = { replay_id: string; slot_index: number; state_digest: string; approval_state?: string };

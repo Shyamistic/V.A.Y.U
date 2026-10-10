@@ -1,0 +1,44 @@
+# Cloud Scheduler jobs (design §10.6). Declarative input to provision.ps1.
+# Both jobs are created PAUSED. OIDC service-account auth with the service URL as
+# audience. NO --message-body (static bodies would permanently replay; the
+# per-slot key is derived server-side in deploy/cadence.py). maxRetryDuration is
+# strictly < the 900s cadence so a slot's retries finish before the next slot.
+# No public invoker target anywhere; invocation is OIDC-authenticated only.
+jobs:
+  - name: monsoongrid-fast-loop
+    description: "15-minute shadow-dispatch fast loop (advance the active replay)"
+    schedule: "*/15 * * * *"
+    timeZone: "Asia/Kolkata"
+    state: PAUSED
+    httpTarget:
+      uri: "https://monsoongrid-REGION-PROJECT_ID.a.run.app/_sched/fast-loop"
+      httpMethod: POST
+      headers:
+        Content-Type: application/json
+      oidcToken:
+        serviceAccountEmail: "monsoongrid-scheduler@PROJECT_ID.iam.gserviceaccount.com"
+        audience: "https://monsoongrid-REGION-PROJECT_ID.a.run.app"
+    retryConfig:
+      retryCount: 3
+      minBackoffDuration: "30s"
+      maxBackoffDuration: "180s"
+      maxRetryDuration: "600s"
+    attemptDeadline: "300s"
+
+  - name: monsoongrid-slow-loop
+    description: "Daily shadow-replay slow loop (full 96-slot demo)"
+    schedule: "15 19 * * *"
+    timeZone: "Asia/Kolkata"
+    state: PAUSED
+    httpTarget:
+      uri: "https://monsoongrid-REGION-PROJECT_ID.a.run.app/_sched/slow-loop"
+      httpMethod: POST
+      headers:
+        Content-Type: application/json
+      oidcToken:
+        serviceAccountEmail: "monsoongrid-scheduler@PROJECT_ID.iam.gserviceaccount.com"
+        audience: "https://monsoongrid-REGION-PROJECT_ID.a.run.app"
+    retryConfig:
+      retryCount: 2
+      maxRetryDuration: "600s"
+    attemptDeadline: "300s"

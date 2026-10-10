@@ -577,6 +577,22 @@ def test_cadence_fast_loop_skips():
 # --------------------------------------------------------------------------- #
 
 
+def test_source_revision_excludes_dependencies_but_binds_built_ui(tmp_path):
+    from deploy.source_revision import source_tree_digest
+
+    ui = tmp_path / "src" / "monsoon_grid" / "ui"
+    dependencies = ui / "node_modules" / "dependency"
+    dependencies.mkdir(parents=True)
+    artifact = ui / "dist" / "assets" / "app.js"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("application-v1", encoding="utf-8")
+    before = source_tree_digest(tmp_path)
+    (dependencies / "index.js").write_text("not-shipped", encoding="utf-8")
+    assert source_tree_digest(tmp_path) == before
+    artifact.write_text("application-v2", encoding="utf-8")
+    assert source_tree_digest(tmp_path) != before
+
+
 def test_source_revision_branches(tmp_path, monkeypatch):
     from deploy import source_revision
 

@@ -1,0 +1,9 @@
+{
+  "experiment": "baselines",
+  "seed": 20260101,
+  "total_budget_hours": 2.0,
+  "baselines": ["persistence", "seasonal_climatology", "baseline_only", "qr_uncalibrated", "ours"],
+  "diebold_mariano_h": 1,
+  "insufficient_sample_threshold": 30,
+  "_assumptions": "every value here is a scenario_assumption per design \u00a717"
+}

@@ -1,0 +1,13 @@
+# CI-only additions for the Cloud Build `test` and `lint` steps (design §9.1).
+# Installed on top of requirements-linux.txt INSIDE the build, never into the
+# runtime image layer. These are the dev/test distributions excluded from the
+# runtime manifest.
+-r requirements-linux.txt
+attrs==26.1.0
+hypothesis==6.125.3
+iniconfig==2.3.1
+packaging==26.3
+pluggy==1.6.0
+pytest==8.3.4
+ruff==0.9.4
+sortedcontainers==2.4.0

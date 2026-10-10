@@ -1,0 +1,27 @@
+# MonsoonGrid Phase 2 forecasting experiments.
+#
+# Design decision (forecasting-design.md §3.1): install NOTHING. Every dependency
+# below is ALREADY present in runtime/site-packages and is pinned here only to
+# document the versions the experiments were verified against. The forecasting
+# package implements its statistics directly on numpy/scipy and adds no new deps.
+numpy==2.2.2
+scipy==1.15.1
+pydantic==2.10.5
+httpx==0.28.1
+hypothesis==6.125.3
+
+# ---------------------------------------------------------------------------
+# OPTIONAL cross-check block -- NOT required by CI and NOT installed by default.
+# Running the optional pvlib cross-check (experiments/run_pvlib_crosscheck.py)
+# needs pvlib + pandas. Installing them MUTATES the shared product runtime and
+# makes it diverge from requirements.lock, which certificates reference. If you
+# accept that, the ONLY permitted install form is:
+#
+#   & $py -m pip install --no-deps --target `
+#       'C:\Users\shyam.BATCONSOLE\Desktop\etgenai\monsoon_grid\runtime\site-packages' `
+#       pvlib pandas pytz python-dateutil
+#
+# (each transitive dependency explicit). The cross-check script skips cleanly if
+# pvlib is not importable, so leaving this commented out is the default.
+# pvlib
+# pandas

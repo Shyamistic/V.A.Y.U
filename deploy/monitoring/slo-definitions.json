@@ -1,0 +1,46 @@
+{
+  "comment": "Cloud Monitoring SLOs (design §7.4). attained is never asserted; these mirror observability.slo_definitions().",
+  "slos": [
+    {
+      "slo_id": "S1",
+      "displayName": "Decision availability",
+      "goal": 0.99,
+      "rollingPeriodDays": 28,
+      "numerator": "scheduled 15-min slots that produced a validated SafetyDecision with a signed certificate",
+      "denominator": "scheduled slots",
+      "measured": false,
+      "attained": null
+    },
+    {
+      "slo_id": "S2",
+      "displayName": "Decision latency",
+      "goal_p95_seconds": 60,
+      "goal_p99_seconds": 285,
+      "rollingPeriodDays": 7,
+      "numerator": "latency from scheduler invocation to decision persisted",
+      "denominator": "all planned slots",
+      "measured": false,
+      "attained": null
+    },
+    {
+      "slo_id": "S3",
+      "displayName": "Fallback-rate ceiling",
+      "goal_max": 0.05,
+      "rollingPeriodDays": 7,
+      "numerator": "slots whose SolverResult.status == OPTIMAL",
+      "denominator": "all planned slots",
+      "measured": false,
+      "attained": null
+    },
+    {
+      "slo_id": "S4",
+      "displayName": "Certificate verification success",
+      "goal": 1.0,
+      "window": "every verification",
+      "numerator": "load_and_verify() returning verified=True",
+      "denominator": "every verification attempt",
+      "measured": false,
+      "attained": null
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -13,17 +14,19 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import auth, observability, tenancy
 from .canonical import canonical_text, sha256_hex, state_digest
 from .certificates import ensure_demo_trust
 from .cli import execute_replay, write_execution_artifacts
 from .config import ARTIFACT_ROOT, PRODUCT_ROOT, REPLAY_VERSION
-from .contracts import RESERVED_ACTOR_IDS, ApprovalEvent, ApprovalRecord, ApprovalRequest, DemoRequest, PlanningRequest, Provenance, ReplayAdvanceRequest, ReplayCreateRequest, ValidationRequest
+from .contracts import RESERVED_ACTOR_IDS, ApprovalEvent, ApprovalRecord, ApprovalRequest, DemoRequest, PlanningRequest, Provenance, ReplayAdvanceRequest, ReplayCreateRequest, SafetyDecision, ValidationRequest
 from .forecasts import build_forecasts
 from .fixtures import fixture_set_hash, load_demo_events, load_demo_portfolio
 from .cli import _approval_audit_event
 from .persistence import PersistenceStore
 from .planner import plan_next
 from .validator import validate_proposal
+from .workspace_evidence import assemble_workspace_evidence
 
 app = FastAPI(title="MonsoonGrid P4", version=REPLAY_VERSION, description="Local SIMULATION/REPLAY service; no live control or market submission.")
 
@@ -35,12 +38,34 @@ class ReplayRecord:
     approval_state: str = "PENDING"
     state_digest: str = ""
     approval_events: dict[int, ApprovalEvent] | None = None
+    tenant_id: str = tenancy.DEFAULT_TENANT_ID
 
 
-REPLAYS: dict[str, ReplayRecord] = {}
+def _caller_tenant() -> str:
+    context = observability.current_context()
+    return context.tenant if context is not None and context.tenant else tenancy.DEFAULT_TENANT_ID
+
+
+class ReplayRegistry(dict[str, ReplayRecord]):
+    def get(self, key: str, default=None):
+        record = super().get(key, default)
+        if record is not None and record.tenant_id != _caller_tenant():
+            return default
+        return record
+
+    def __setitem__(self, key: str, record: ReplayRecord) -> None:
+        existing = super().get(key)
+        if existing is not None and existing.tenant_id != _caller_tenant():
+            raise HTTPException(status_code=409, detail=_error("STATE_CONFLICT", "replay identity is unavailable"))
+        record.tenant_id = _caller_tenant()
+        super().__setitem__(key, record)
+
+
+REPLAYS: dict[str, ReplayRecord] = ReplayRegistry()
 IDEMPOTENCY: dict[str, tuple[str, Any]] = {}
 LAST_ADAPTER_STATUS: dict[str, Any] = {"state": "DISABLED", "source": "none", "content_sha256": None, "reason": "VAYU context adapter disabled by default", "scope": "weather-context-only", "no_authoritative_fields": True}
 STORE = PersistenceStore()
+DECISION_AUTHORS = auth.DecisionAuthorIndex()
 
 
 def register_execution(execution: Any) -> str:
@@ -67,6 +92,7 @@ def _idempotency(header: str | None, body_key: str, payload: Any) -> tuple[str, 
     """Persisted idempotency over the store, with an in-process cache (A5)."""
     if header is None or header != body_key:
         raise HTTPException(status_code=422, detail={"code": "IDEMPOTENCY_KEY_MISMATCH", "message": "Idempotency-Key header must equal body idempotency_key"})
+    header = _scoped_key(header)
     digest = sha256_hex(payload)
     cached = IDEMPOTENCY.get(header)
     if cached and cached[0] == digest:
@@ -82,7 +108,20 @@ def _idempotency(header: str | None, body_key: str, payload: Any) -> tuple[str, 
     return None
 
 
+def _scoped_key(key: str) -> str:
+    context = observability.current_context()
+    if context is None or not context.principal:
+        return key
+    return sha256_hex({"tenant": _caller_tenant(), "principal": context.principal, "key": key})
+
+
+def _require_pilot_artifacts() -> None:
+    if _caller_tenant() != tenancy.DEFAULT_TENANT_ID:
+        raise HTTPException(status_code=404, detail=_error("INPUT_MISSING", "evidence is not present"))
+
+
 def _remember(key: str, payload: Any, response: Any) -> None:
+    key = _scoped_key(key)
     digest = sha256_hex(payload)
     STORE.remember_idempotency(key, digest, json.loads(canonical_text(response)))
     IDEMPOTENCY[key] = (digest, response)
@@ -138,7 +177,7 @@ def get_replay(replay_id: str):
 
 
 @app.post("/replays/{replay_id}/advance")
-def advance_replay(replay_id: str, request: ReplayAdvanceRequest, idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")):
+def advance_replay(replay_id: str, request: ReplayAdvanceRequest, http_request: Request, idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")):
     previous = _idempotency(idempotency_key, request.idempotency_key, request.model_dump(mode="python"))
     if previous:
         return previous[1]
@@ -161,10 +200,21 @@ def advance_replay(replay_id: str, request: ReplayAdvanceRequest, idempotency_ke
         raise HTTPException(status_code=503, detail=_error("DEPENDENCY_UNAVAILABLE", "planner returned no proposal", replay_id=replay_id, retryable=True))
     record.execution.decisions[record.slot_index] = decision
     record.execution.proposals[record.slot_index] = proposal
+    principal = getattr(http_request.state, "principal", None)
+    if principal is not None and DECISION_AUTHORS.author_of(replay_id=replay_id, decision_id=decision.decision_id) is None:
+        DECISION_AUTHORS.record_author(
+            replay_id=replay_id, decision_id=decision.decision_id,
+            subject=principal.subject, author_class="human",
+        )
     approval = (record.approval_events or {}).get(record.slot_index)
     # A5: a mutation requires a PERSISTED approval, not just an in-memory one.
     persisted = STORE.load_approval(replay_id, decision.decision_id) is not None
-    token_matches = approval is not None and persisted and request.approval_token in {approval.record_id, approval.proposal_digest}
+    token_matches = (
+        approval is not None and persisted
+        and approval.slot_index == record.slot_index
+        and approval.proposal_digest == sha256_hex(proposal)
+        and request.approval_token in {approval.record_id, approval.proposal_digest}
+    )
     if decision.status == "ACCEPTED" and not token_matches:
         record.approval_state = "PENDING"
         data = {"replay_id": replay_id, "slot_index": record.slot_index, "state_digest": _state_digest(record), "decision": decision, "approval_required": True}
@@ -199,13 +249,27 @@ def validate(request: ValidationRequest, idempotency_key: str | None = Header(de
 
 
 @app.post("/approvals")
-def approval(request: ApprovalRequest, idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")):
+def approval(request: ApprovalRequest, http_request: Request, idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")):
+    principal = getattr(http_request.state, "principal", None)
+    if principal is not None:
+        request = request.model_copy(update={"actor_id": principal.actor_id})
     previous = _idempotency(idempotency_key, request.idempotency_key, request.model_dump(mode="python"))
     if previous:
         return previous[1]
     record = REPLAYS.get(request.replay_id)
     if record is None or request.expected_state_digest != _state_digest(record):
         raise HTTPException(status_code=409, detail=_error("STATE_CONFLICT", "replay or expected digest is stale", replay_id=request.replay_id, retryable=True))
+    if principal is not None:
+        authorization = auth.authorize_approval(
+            principal=principal, replay_id=request.replay_id, decision_id=request.decision_id,
+            expected_state_digest=request.expected_state_digest, observed_state_digest=_state_digest(record),
+            idempotency_key=request.idempotency_key, action=request.action, reason=request.reason or "",
+            author=DECISION_AUTHORS.author_of(replay_id=request.replay_id, decision_id=request.decision_id),
+            now=auth._utcnow(), production=getattr(http_request.state, "auth_environment", "production") == "production",
+        )
+        if isinstance(authorization, auth.ApprovalRejected):
+            status_code = 403 if authorization.code in {"APPROVAL_ROLE_DENIED", "APPROVAL_SELF_APPROVAL", "APPROVAL_AUTHOR_UNKNOWN"} else 422
+            raise HTTPException(status_code=status_code, detail=_error(authorization.code, authorization.message, retryable=authorization.retryable))
     if request.actor_id in RESERVED_ACTOR_IDS:
         raise HTTPException(status_code=422, detail=_error("SYNTHETIC_ACTOR_FORBIDDEN", "the batch-replay synthetic actor cannot approve through the interactive API", replay_id=request.replay_id))
     if request.action in {"approve", "override"} and (request.reason is None or not request.reason.strip()):
@@ -287,7 +351,7 @@ def scenarios(replay_id: str):
 
 
 @app.post("/planning")
-def planning(request: PlanningRequest, idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")):
+def planning(request: PlanningRequest, http_request: Request, idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")):
     previous = _idempotency(idempotency_key, request.idempotency_key, request.model_dump(mode="python"))
     if previous:
         return previous[1]
@@ -296,6 +360,14 @@ def planning(request: PlanningRequest, idempotency_key: str | None = Header(defa
         raise HTTPException(status_code=409, detail=_error("STATE_CONFLICT", "planning state is stale", replay_id=request.replay_id, retryable=True))
     path = next(item for item in record.execution.scenarios.paths if item.scenario_id == record.execution.scenarios.realized_path_id)
     result = plan_next(record.execution.portfolio, path, record.execution.events, replay_id=request.replay_id, slot_index=request.slot_index, policy_mode=request.policy_mode)
+    if result.proposal is None:
+        raise HTTPException(status_code=503, detail=_error("DEPENDENCY_UNAVAILABLE", "planner returned no proposal", retryable=True))
+    decision = validate_proposal(record.execution.portfolio, path, record.execution.events, result.proposal, replay_id=request.replay_id, slot_index=request.slot_index)
+    record.execution.decisions[request.slot_index] = decision
+    record.execution.proposals[request.slot_index] = result.proposal
+    principal = getattr(http_request.state, "principal", None)
+    if principal is not None and DECISION_AUTHORS.author_of(replay_id=request.replay_id, decision_id=result.proposal.decision_id) is None:
+        DECISION_AUTHORS.record_author(replay_id=request.replay_id, decision_id=result.proposal.decision_id, subject=principal.subject, author_class="human")
     response = _envelope(status="ok", data=result)
     _remember(request.idempotency_key, request.model_dump(mode="python"), response)
     return response
@@ -319,6 +391,7 @@ def events(replay_id: str):
 
 @app.get("/latency/{replay_id}")
 def latency(replay_id: str):
+    _require_pilot_artifacts()
     # Measured, non-deterministic latency report (A6). Read from the non-canonical
     # latency.json artifact when present, else synthesize from the in-memory execution.
     path = ARTIFACT_ROOT / "latency.json"
@@ -359,6 +432,7 @@ def solver_status(replay_id: str, slot: int = 0):
 
 @app.get("/certificates/{certificate_id}/verification")
 def certificate_verification(certificate_id: str):
+    _require_pilot_artifacts()
     from .certificates import load_and_verify
 
     candidates = list(ARTIFACT_ROOT.glob("**/*.json"))
@@ -378,6 +452,7 @@ def certificate_verification(certificate_id: str):
 
 @app.get("/certificates/{certificate_id}")
 def certificate(certificate_id: str):
+    _require_pilot_artifacts()
     candidates = list(ARTIFACT_ROOT.glob("**/*.json"))
     for candidate in candidates:
         try:
@@ -396,12 +471,14 @@ def adapter_status() -> dict[str, Any]:
 
 @app.post("/demo")
 def demo(request: DemoRequest, idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")):
+    _require_pilot_artifacts()
     previous = _idempotency(idempotency_key, request.idempotency_key, request.model_dump(mode="python"))
     if previous:
         return previous[1]
     execution = execute_replay(seed=request.seed, policy_mode=request.policy_mode, adapter_state=request.adapter_state, deadline_seconds=request.deadline_seconds)
     LAST_ADAPTER_STATUS.update({"state": execution.adapter_state, "source": execution.adapter_status.source, "content_sha256": execution.adapter_status.content_sha256, "reason": execution.adapter_status.reason})
     path = write_execution_artifacts(execution)
+    register_execution(execution)
     response = _envelope(status="ok", data={"replay_id": execution.replay_id, "elapsed_seconds": execution.elapsed_seconds, "summary_path": str(path), "scenario_id": execution.scenarios.realized_path_id})
     _remember(request.idempotency_key, request.model_dump(mode="python"), response)
     return response
@@ -418,7 +495,50 @@ def get_portfolio() -> dict[str, Any]:
     return _envelope(status="ok", data=portfolio.model_dump(mode="json"))
 
 
-from functools import lru_cache
+@app.get("/api/session")
+def session(http_request: Request) -> dict[str, Any]:
+    principal = auth.current_principal(http_request)
+    return _envelope(status="ok", data={
+        "actor_id": principal.actor_id, "tenant_id": principal.tenant_id,
+        "roles": sorted(principal.roles), "auth_method": principal.auth_method,
+        "environment": getattr(http_request.state, "auth_environment", "development"),
+    })
+
+
+@app.get("/api/workspace")
+def workspace() -> dict[str, Any]:
+    _require_pilot_artifacts()
+    try:
+        replay = json.loads((ARTIFACT_ROOT / "replay-results.json").read_text(encoding="utf-8"))
+        summary = json.loads((ARTIFACT_ROOT / "demo-summary.json").read_text(encoding="utf-8"))
+        metric_data = json.loads((ARTIFACT_ROOT / "metrics.json").read_text(encoding="utf-8"))
+        certificate_data = json.loads((ARTIFACT_ROOT / "certificate.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=503, detail=_error("EVIDENCE_UNAVAILABLE", "generate the local replay evidence before opening the workspace", retryable=True)) from exc
+    if len(replay.get("slot_states", [])) != 96 or replay.get("replay_id") != summary.get("replay_id") or metric_data != summary.get("metrics"):
+        raise HTTPException(status_code=503, detail=_error("EVIDENCE_INCONSISTENT", "replay evidence must be regenerated together", retryable=True))
+    try:
+        decisions = replay["decisions"]
+        if isinstance(decisions, dict):
+            decisions = list(decisions.values())
+        replay["decisions"] = [item.model_dump(mode="json") for item in sorted(
+            (SafetyDecision.model_validate(item) for item in decisions), key=lambda item: item.slot_index,
+        )]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail=_error("EVIDENCE_INCONSISTENT", "replay decisions do not satisfy the workspace contract", retryable=True)) from exc
+    portfolio_data = load_demo_portfolio()
+    try:
+        evidence = assemble_workspace_evidence(portfolio_data, replay, PRODUCT_ROOT / "experiments" / "results", metric_data)
+    except (KeyError, TypeError, ValueError, StopIteration) as exc:
+        raise HTTPException(status_code=503, detail=_error("EVIDENCE_INCONSISTENT", "scenario evidence does not satisfy the workspace contract", retryable=True)) from exc
+    return _envelope(status="ok", data={
+        "portfolio": portfolio_data.model_dump(mode="json"),
+        "replay": replay, "summary": summary, "metrics": metric_data,
+        "certificate": certificate_data,
+        **evidence,
+        "scope": "SYNTHETIC_REPLAY", "layout": "SCHEMATIC_NOT_GEOGRAPHIC",
+        "limitations": ["G3_NON_ANTICIPATIVITY", "DSM_RATES_ASSUMED", "NO_LIVE_CONTROL", "NO_MARKET_SUBMISSION"],
+    })
 
 
 @lru_cache(maxsize=4)
@@ -430,6 +550,95 @@ def _sim_context(seed: int):
     events = load_demo_events()
     scenario_set = generate_scenarios(portfolio, seed=seed)
     return portfolio, events, scenario_set.paths[1]
+
+
+@lru_cache(maxsize=8)
+def _agent_decision_cached(seed: int, slot: int, preset: str, brain_name: str) -> str:
+    """Run the objective-selection agent for a slot and cache the JSON result.
+
+    Cached because the deterministic brain + solver are pure for a (seed, slot,
+    preset); a Gemini brain is only used when explicitly enabled via env.
+    """
+    import json as _json
+
+    from .agent import ObjectiveSelectionAgent, build_brain
+    from .dispatch import available_generation, demand_by_load
+    from .forecasts import build_forecasts
+
+    portfolio, events, path = _sim_context(seed)
+    generation: dict[str, list[float]] = {}
+    demand: dict[str, list[float]] = {}
+    for s in range(96):
+        for key, value in available_generation(portfolio, path, events, s).items():
+            generation.setdefault(key, [0.0] * 96)[s] = value
+        for key, value in demand_by_load(portfolio, path, events, s).items():
+            demand.setdefault(key, [0.0] * 96)[s] = value
+    forecasts = build_forecasts(portfolio)
+    timestamp = replay_time_iso(portfolio.fixture_start_utc, slot)
+    agent = ObjectiveSelectionAgent(portfolio=portfolio, brain=build_brain(brain_name))
+    decision = agent.deliberate(
+        path, events, replay_id=f"agent-{seed}", slot_index=slot,
+        generation_mw=generation, demand_mw=demand, forecasts=forecasts,
+        energy_state=None, preset_policy=preset, timestamp_utc=timestamp,
+    )
+    payload = {
+        "replay_id": decision.replay_id, "slot_index": decision.slot_index, "brain": decision.brain,
+        "features": decision.features.as_dict(),
+        "chosen_objective_order": decision.chosen_objective_order,
+        "rationale": decision.rationale, "confidence": decision.confidence,
+        "steps": [
+            {"iteration": s.iteration, "objective_order": s.objective_order, "rationale": s.rationale,
+             "confidence": s.confidence, "validator_status": s.validator_status,
+             "critical_unserved_mwh": s.critical_unserved_mwh, "net_cost_usd": s.net_cost_usd,
+             "accepted": s.accepted, "revised_reason": s.revised_reason}
+            for s in decision.steps
+        ],
+        "actions": [
+            {"category": a.category, "action": a.action, "target": a.target,
+             "magnitude_mw": a.magnitude_mw, "unit": a.unit, "driver_objective": a.driver_objective, "note": a.note}
+            for a in decision.actions
+        ],
+        "conflict_note": decision.conflict_note,
+        "preset_policy": decision.preset_policy,
+        "preset_net_cost_usd": decision.preset_net_cost_usd,
+        "preset_critical_unserved_mwh": decision.preset_critical_unserved_mwh,
+        "agent_net_cost_usd": decision.agent_net_cost_usd,
+        "agent_critical_unserved_mwh": decision.agent_critical_unserved_mwh,
+        "cost_regret_usd": decision.cost_regret_usd,
+        "reliability_regret_mwh": decision.reliability_regret_mwh,
+        "forbidden_tools_blocked": decision.forbidden_tools_blocked,
+        "digest": decision.digest,
+        "scope": "SIMULATION / REPLAY / NO LIVE CONTROL / NO MARKET SUBMISSION",
+    }
+    return _json.dumps(payload)
+
+
+def replay_time_iso(start, slot_index: int) -> str:
+    from .quality import replay_time
+    return replay_time(start, slot_index).isoformat()
+
+
+@app.get("/api/agent/deliberate")
+def agent_deliberate(slot: int = 0, policy: str = "balanced") -> dict[str, Any]:
+    """Autonomous objective-selection (P4 F2): the agent chooses the optimizer's
+    criteria for this slot, reflects on the validator outcome, and reports regret
+    vs the fixed preset. Read/simulation only; no command path."""
+    import json as _json
+
+    _require_pilot_artifacts()
+    if slot < 0 or slot > 95:
+        raise HTTPException(status_code=422, detail=_error("INPUT_INVALID", "slot must be in [0, 95]"))
+    if policy not in {"reliability_first", "balanced", "cost_first"}:
+        raise HTTPException(status_code=422, detail=_error("INPUT_INVALID", "policy must be a known preset"))
+    import os as _os
+
+    brain = _os.environ.get("VAYU_AGENT_BRAIN", "deterministic")
+    seed = load_demo_portfolio().seed
+    try:
+        payload = _json.loads(_agent_decision_cached(seed, slot, policy, brain))
+    except Exception as exc:  # noqa: BLE001 - surface a typed error, never a 500 stack
+        raise HTTPException(status_code=503, detail=_error("AGENT_UNAVAILABLE", f"agent deliberation failed: {type(exc).__name__}", retryable=True)) from exc
+    return _envelope(status="ok", data=payload)
 
 
 @app.get("/api/simulation/state")
@@ -625,6 +834,6 @@ def parse_multimodal_nowcast(body: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-UI_ROOT = Path(__file__).resolve().parent / "ui"
+UI_ROOT = Path(__file__).resolve().parent / "ui" / "dist"
 if UI_ROOT.exists():
     app.mount("/ui", StaticFiles(directory=UI_ROOT, html=True), name="ui")

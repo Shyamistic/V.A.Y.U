@@ -22,7 +22,45 @@ The exact roster is five solar farms, three wind farms, two virtual BESSs, three
 
 ## API
 
+## Decision Desk Build
+
+The served UI is a Vite/React/TypeScript application with a lazily loaded Three.js
+portfolio schematic and evidence charts. Build it before starting the service:
+
+```powershell
+npm --prefix .\monsoon_grid\src\monsoon_grid\ui ci
+npm --prefix .\monsoon_grid\src\monsoon_grid\ui run build
+& .\monsoon_grid\scripts\start.ps1 -Port 8017
+```
+
+Configure `MONSOON_GRID_DEV_BEARER_TOKEN` with an operator-controlled, disposable
+local-development credential before starting. The UI accepts that credential in
+memory only; it does not store it in local/session storage. The preview is at
+`http://127.0.0.1:8017/ui/`. Production must use the existing OIDC configuration;
+local-development auth is forbidden in production and `/ui` remains denied there
+until a reviewed browser-auth/hosting design lands. Local serving now uses the
+same `deploy.asgi:app` security/observability composition as deployment.
+
+The eleven views expose actual replay assets, storage, baseline forecasts,
+scenario paths, fixture events, decisions, economics/baseline comparisons,
+safety, scientific artifacts, software-only bench cases and signed evidence.
+The demo sequence navigates real events and rejected slots; it issues no commands.
+Phase 2 forecasts are not yet in dispatch. Bench frames are emulated, not hardware.
+The 3D geometry is schematic, not surveyed geography or validated network physics.
+
+Regenerate the demo with `run_demo.ps1` when `/api/workspace` reports missing or
+inconsistent evidence. Tests use a separate `runtime-tests/` store so they cannot
+overwrite the signed demo's SQLite records. Normal verification remains scoped
+to the demo runtime, and the gate harness uses its separate `runtime-gates/` root.
+
+## API Routes
+
 `start.ps1` serves `127.0.0.1:8000`. Typed routes include `/health`, `/ready`, `/replays`, `/replays/{id}/advance`, `/validate`, `/approvals`, `/replays/{id}`, `/certificates/{id}`, `/metrics/{id}`, `/events/{id}`, `/adapter-status`, and `/demo`. Validation acceptance does not apply an action. A separate approval request with actor, reason, current state digest, and matching proposal digest is required before an advance can apply; overrides cannot bypass fatal findings. Valid safety rejection is HTTP 200 with a rejected envelope; malformed contracts are 422, state/idempotency conflicts are 409, and unavailable dependencies without a fallback are 503. There is deliberately no live-control route.
+
+`/api/session` and `/api/workspace` require authentication. Workspace decisions
+are validated and returned as a sorted array even though the stored artifact uses
+slot-keyed records. Approval actors come from verified identity; self-approval is
+rejected, and replay reads/idempotency are scoped to the tenant/principal.
 
 ## Evidence
 

@@ -1,0 +1,58 @@
+# Least-privilege IAM matrix (design §10.6). Reviewable plan only. No allUsers /
+# allAuthenticatedUsers binding anywhere. Build identity is separate from runtime
+# identity so a build compromise does not inherit database or secret access.
+serviceAccounts:
+  - email: monsoongrid-run@PROJECT_ID.iam.gserviceaccount.com
+    displayName: "MonsoonGrid Cloud Run runtime identity"
+    roles:
+      - role: roles/cloudsql.client
+        scope: project
+      - role: roles/secretmanager.secretAccessor
+        scope: secret:monsoongrid-signing-seed
+      - role: roles/secretmanager.secretAccessor
+        scope: secret:monsoongrid-trust-fingerprint
+      - role: roles/secretmanager.secretAccessor
+        scope: secret:monsoongrid-role-map
+      - role: roles/secretmanager.secretAccessor
+        scope: secret:monsoongrid-db-password
+      - role: roles/storage.objectCreator
+        scope: bucket:monsoongrid-evidence
+      - role: roles/storage.objectViewer
+        scope: bucket:monsoongrid-evidence
+      # audit bucket is create-only: a compromised service cannot read or delete
+      # its own trail, and holds no storage.admin so it cannot alter bucket lock.
+      - role: roles/storage.objectCreator
+        scope: bucket:monsoongrid-audit
+      - role: roles/bigquery.dataEditor
+        scope: dataset:monsoongrid_metrics
+      - role: roles/logging.logWriter
+        scope: project
+      - role: roles/monitoring.metricWriter
+        scope: project
+
+  - email: monsoongrid-scheduler@PROJECT_ID.iam.gserviceaccount.com
+    displayName: "MonsoonGrid Cloud Scheduler invoker"
+    roles:
+      - role: roles/run.invoker
+        scope: service:monsoongrid
+
+  - email: monsoongrid-build@PROJECT_ID.iam.gserviceaccount.com
+    displayName: "MonsoonGrid Cloud Build identity"
+    roles:
+      - role: roles/artifactregistry.writer
+        scope: repository:monsoongrid
+      - role: roles/logging.logWriter
+        scope: project
+      # run.developer granted ONLY if automated deploy is later adopted
+      # - role: roles/run.developer
+      #   scope: service:monsoongrid
+
+humanAccess:
+  # named principals only; no run.admin / cloudsql.admin for pilot operators
+  - role: roles/run.invoker
+    members:
+      - "user:NAMED_OPERATOR@example.com"
+
+forbidden:
+  - "allUsers"
+  - "allAuthenticatedUsers"

@@ -1,0 +1,25 @@
+{
+  "_note": "Unit prices + retrieval metadata (design §11, FR-D1, ASM-6). No web retrieval tool was available to this step, so every numeric price is marked ASSUMPTION-UNVERIFIED. The implementation phase MUST retrieve the published list prices and flip status to verified; an unflipped status means the number is not defensible.",
+  "currency": "USD",
+  "region": "asia-south1",
+  "line_items": {
+    "cloud_run_vcpu_second_active": {"value": 0.000024, "unit": "USD per vCPU-second (active)", "source_url": "https://cloud.google.com/run/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "cloud_run_gib_second_active": {"value": 0.0000025, "unit": "USD per GiB-second (active)", "source_url": "https://cloud.google.com/run/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "cloud_run_vcpu_second_idle": {"value": 0.0000025, "unit": "USD per vCPU-second (idle/throttled)", "source_url": "https://cloud.google.com/run/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "cloud_run_requests_million": {"value": 0.40, "unit": "USD per million requests", "source_url": "https://cloud.google.com/run/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "cloud_sql_shared_core_month": {"value": 9.37, "unit": "USD per month (db-f1-micro, always on)", "source_url": "https://cloud.google.com/sql/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "cloud_sql_ssd_gb_month": {"value": 0.17, "unit": "USD per GB-month SSD", "source_url": "https://cloud.google.com/sql/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "gcs_standard_gb_month": {"value": 0.023, "unit": "USD per GB-month standard storage", "source_url": "https://cloud.google.com/storage/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "bigquery_active_storage_gb_month": {"value": 0.02, "unit": "USD per GB-month active storage", "source_url": "https://cloud.google.com/bigquery/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "secret_manager_active_version_month": {"value": 0.06, "unit": "USD per active secret version per month", "source_url": "https://cloud.google.com/secret-manager/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "artifact_registry_gb_month": {"value": 0.10, "unit": "USD per GB-month", "source_url": "https://cloud.google.com/artifact-registry/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "cloud_scheduler_job_month": {"value": 0.10, "unit": "USD per job per month (first 3 free)", "source_url": "https://cloud.google.com/scheduler/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "cloud_logging_gb": {"value": 0.50, "unit": "USD per GB ingested (first 50 GB free)", "source_url": "https://cloud.google.com/stackdriver/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "vertex_gemini_input_1k_tokens": {"value": 0.0, "unit": "USD per 1k input tokens (per-model; zero quantity for this pilot)", "source_url": "https://cloud.google.com/vertex-ai/generative-ai/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"},
+    "vertex_gemini_output_1k_tokens": {"value": 0.0, "unit": "USD per 1k output tokens (per-model; zero quantity for this pilot)", "source_url": "https://cloud.google.com/vertex-ai/generative-ai/pricing", "retrieved_utc": null, "status": "ASSUMPTION-UNVERIFIED"}
+  },
+  "structural_facts": [
+    "Cloud Run bills only for resources used, rounded up to the nearest 100ms, which is why idle minScale:1 CPU is a real line item.",
+    "Gemini/Vertex bills per token with input and output priced separately, varying by model and context window."
+  ]
+}

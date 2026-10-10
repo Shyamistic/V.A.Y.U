@@ -401,9 +401,14 @@ def plan_next(
     scenario_paths: Iterable[ScenarioPath] | None = None,
     dr_allowed_load_ids: set[str] | None = None,
     carbon_factor: CarbonFactorAssumption | None = None,
+    objective_order: tuple[str, ...] | None = None,
 ) -> PlanResult:
     events = list(events)
     now = monotonic()
+    # The agentic layer may supply a bespoke lexicographic ordering (P4 F2). It is
+    # validated by the agent to known objectives with a safety tier first; when
+    # absent we use the fixed policy preset exactly as before.
+    active_objectives = tuple(objective_order) if objective_order else POLICY_OBJECTIVES[policy_mode]
     effective_deadline = deadline if deadline is not None else now + slot_budget_seconds
     remaining = max(0.0, min(effective_deadline - now, request_budget_seconds, slot_budget_seconds))
     carbon_factor = carbon_factor or load_carbon_factor()
@@ -439,7 +444,7 @@ def plan_next(
         )
         result, status, message = _solve_lexicographic(
             model,
-            objective_order=POLICY_OBJECTIVES[policy_mode],
+            objective_order=active_objectives,
             deadline=effective_deadline,
             request_budget_seconds=request_budget_seconds,
             slot_budget_seconds=slot_budget_seconds,
@@ -461,13 +466,13 @@ def plan_next(
         )
         objectives = _objective_values(model, solution, portfolio, paths, events, slot_index=slot_index, energy_state=energy_state, carbon_factor=carbon_factor)
         stage_lookup = {name: objectives.get(name, value) for name, value in stage_values}
-        stages = [StageOptimum(stage_name=f"tier-{index}", objective_name=name, value=round(stage_lookup.get(name, 0.0), 6), unit="MWh" if "margin" in name or "reliability" in name else None, fixed_tolerance=BESS_NUMERIC_TOLERANCE_MWH, provenance=_prov(replay_id, path.scenario_id)) for index, name in enumerate(POLICY_OBJECTIVES[policy_mode], start=1)]
+        stages = [StageOptimum(stage_name=f"tier-{index}", objective_name=name, value=round(stage_lookup.get(name, 0.0), 6), unit="MWh" if "margin" in name or "reliability" in name else None, fixed_tolerance=BESS_NUMERIC_TOLERANCE_MWH, provenance=_prov(replay_id, path.scenario_id)) for index, name in enumerate(active_objectives, start=1)]
         solver = SolverResult(
             status="OPTIMAL",
             solver_name="scipy.optimize.milp/HiGHS",
             solver_version=solver_version,
             budget_seconds=round(min(request_budget_seconds, slot_budget_seconds), 6),
-            objective_values=[round(stage_lookup.get(name, 0.0), 6) for name in POLICY_OBJECTIVES[policy_mode]],
+            objective_values=[round(stage_lookup.get(name, 0.0), 6) for name in active_objectives],
             stage_optima=stages,
             message=message,
             fallback_reason=None,
@@ -509,7 +514,7 @@ def plan_next(
         replay_id=replay_id,
         slot_index=slot_index,
         tool_calls=[tool],
-        objective_sequence=list(POLICY_OBJECTIVES[policy_mode]),
+        objective_sequence=list(active_objectives),
         stage_optima=candidate.solver_result.stage_optima,
         proposal_id=candidate.proposal_id,
         status="fallback" if used_fallback else "completed",

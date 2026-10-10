@@ -1,0 +1,36 @@
+{
+  "experiment": "fetch_datasets",
+  "seed": 20260101,
+  "total_budget_hours": 2.0,
+  "cache_root": "data/cache",
+  "offline_ok": true,
+  "per_file_cap_mb": 150,
+  "per_dataset_cap_mb": 300,
+  "max_records_per_dataset": 20000000,
+  "issue_subsample_stride": 1,
+  "default_min_bytes": 1,
+  "sources": {
+    "openmeteo_previous_runs": {
+      "endpoint": "https://previous-runs-api.open-meteo.com/v1/forecast",
+      "model": "ecmwf_ifs025",
+      "license": "CC-BY-4.0",
+      "min_bytes": 256
+    },
+    "nasa_power": {
+      "endpoint": "https://power.larc.nasa.gov/api/temporal/hourly/point",
+      "license": "NASA (public)",
+      "min_bytes": 256
+    },
+    "gefcom2014": {
+      "endpoint": "https://ars.els-cdn.com/content/image/1-s2.0-S0169207016000133-mmc1.zip",
+      "license": "Elsevier supplementary (not redistributed)",
+      "min_bytes": 52428800
+    },
+    "emsx": {
+      "endpoint": "https://zenodo.org/record/5510400",
+      "license": "ODC-ODbL (not redistributed)",
+      "min_bytes": 1048576
+    }
+  },
+  "_note": "Fetchers re-probe at run time; unobtainable sources are reported obtained:false with a reason. No synthetic substitution. min_bytes is the plausible-dataset payload floor from design sec 8.1 (GEFCom mmc1.zip ~126 MB; EMSx site files 30.6-123 MB; the configured EMSx endpoint is the Zenodo record landing page (HTML), which is correctly rejected as not-obtained). Open-Meteo/NASA POWER are small JSON responses, so their floor only guards against empty/truncated bodies."
+}

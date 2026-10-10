@@ -1,0 +1,35 @@
+# Build-context exclusions (design §9.3). With BuildKit this file is used when
+# the build names deploy/Dockerfile (BuildKit reads <dockerfile>.dockerignore and
+# <context>/.dockerignore; verify_image.ps1 passes this path). It keeps the
+# 361.6 MB runtime/ tree out of the context so the transfer stays well under 5 MB.
+#
+# dependency trees that must never enter the image (263 MB + 71 MB, Windows ABI)
+runtime/
+../.venv/
+.venv/
+# caches
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.ruff_cache/
+# tests and local evidence are not runtime artifacts
+tests/
+data/
+experiments/
+frontend/
+.agents/
+docs/
+scripts/
+# research reports and protected inputs
+*.md
+*.pdf
+!README.md
+protected-inventory*
+# editor / os noise
+.git/
+.gitignore
+.vscode/
+.idea/
+Thumbs.db
+# NOTE: trust/ and fixtures/ and src/monsoon_grid/ui/ are deliberately NOT ignored
+# (§9.5): they are runtime inputs. src/ and deploy/ are copied by the Dockerfile.

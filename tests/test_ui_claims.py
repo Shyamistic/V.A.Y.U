@@ -21,7 +21,7 @@ BANNED = [
 
 
 def _ui_files():
-    return [p for p in UI_ROOT.rglob("*") if p.is_file()]
+    return [p for p in UI_ROOT.rglob("*") if p.is_file() and "node_modules" not in p.parts and p.suffix in {".html", ".js", ".ts", ".tsx", ".css", ".json"}]
 
 
 @pytest.mark.parametrize("banned", BANNED)

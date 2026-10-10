@@ -15,7 +15,10 @@ from __future__ import annotations
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "monsoon_grid"
-ALLOWED = {"provenance.py", "observability.py", "auth.py"}
+# ingest/base.py timestamps a real network retrieval (retrieved_at_utc), which is
+# observational metadata about a live fetch, not a replay computation, and is
+# excluded from the determinism guarantee like latency.
+ALLOWED = {"provenance.py", "observability.py", "auth.py", "base.py"}
 
 
 def test_datetime_now_absent_from_replay_modules():

@@ -1,0 +1,15 @@
+{
+  "experiment": "calibration_compare",
+  "seed": 20260101,
+  "total_budget_hours": 2.0,
+  "alpha_nominal_headline": 0.20,
+  "alpha_nominal_reported": [0.10, 0.20, 0.50],
+  "enbpi": { "B": 25, "B_sweep": 10, "block_hours": 24, "window_days": 28, "phi": "median" },
+  "aci": { "gamma": 0.01, "gamma_sweep": [0.002, 0.01, 0.05] },
+  "min_calibration_samples": 200,
+  "min_width_capacity_fraction": 0.005,
+  "aci_clip_fraction_warning": 0.10,
+  "regime_claim_min_months": 24,
+  "n_folds": 4,
+  "_assumptions": "every value here is a scenario_assumption per design \u00a717"
+}

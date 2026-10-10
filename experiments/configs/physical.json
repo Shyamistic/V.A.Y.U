@@ -1,0 +1,13 @@
+{
+  "experiment": "physical_sanity",
+  "seed": 20260101,
+  "total_budget_hours": 2.0,
+  "sza_crosscheck_max_deg": 85.0,
+  "transposition_sweep": ["liu_jordan", "hay_davies"],
+  "albedo_sweep": [0.15, 0.20, 0.30],
+  "dc_ac_ratio_sweep": [1.10, 1.20, 1.35],
+  "shear_alpha_sweep": [0.10, 0.143, 0.20],
+  "thermal_sweep": ["sapm", "faiman", "noct"],
+  "physical_clamp_threshold": 0.01,
+  "_assumptions": "every value here is a scenario_assumption per design \u00a717"
+}

@@ -1,0 +1,100 @@
+# Cloud Run service (design §10.2). Reviewable plan only; NOT applied by this task.
+# No public invoker binding (see iam-bindings.yaml). Secrets come from Secret
+# Manager via secretKeyRef /
+# secret volumes, never as env literals. Sizing is reasoned, not measured
+# (docs/deployment.md marks memory/cpu UNMEASURED until a profiled 96-slot replay).
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: monsoongrid
+  labels:
+    app: monsoongrid
+    scope: simulation-replay-no-live-control
+  annotations:
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "3"
+        run.googleapis.com/cpu-throttling: "true"
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 4
+      timeoutSeconds: 300
+      serviceAccountName: monsoongrid-run@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+        - name: monsoongrid
+          image: REGION-docker.pkg.dev/PROJECT_ID/monsoongrid/monsoongrid:SOURCE_REVISION
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          env:
+            - name: MONSOON_GRID_ENV
+              value: production
+            - name: MONSOON_GRID_AUTH_MODE
+              value: production
+            - name: MONSOON_GRID_AUTH_AUDIENCE
+              value: https://monsoongrid-REGION-PROJECT_ID.a.run.app
+            - name: MONSOON_GRID_GCP_PROJECT
+              value: PROJECT_ID
+            - name: MONSOON_GRID_RUNTIME_ROOT
+              value: /var/monsoon/runtime
+            - name: MONSOON_GRID_SIGNING_KEY
+              value: /etc/monsoon/secrets/signing-seed.hex
+            - name: SOURCE_REVISION
+              value: SOURCE_REVISION
+            - name: MONSOON_GRID_TRUST_FINGERPRINT
+              valueFrom:
+                secretKeyRef:
+                  name: monsoongrid-trust-fingerprint
+                  key: latest
+            - name: MONSOON_GRID_ROLE_MAP
+              valueFrom:
+                secretKeyRef:
+                  name: monsoongrid-role-map
+                  key: latest
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: monsoongrid-db-password
+                  key: latest
+          volumeMounts:
+            - name: signing-seed
+              mountPath: /etc/monsoon/secrets
+              readOnly: true
+            - name: runtime
+              mountPath: /var/monsoon/runtime
+          startupProbe:
+            httpGet:
+              path: /_ops/healthz
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 12
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /_ops/healthz
+              port: 8080
+            periodSeconds: 30
+            failureThreshold: 3
+      volumes:
+        - name: signing-seed
+          secret:
+            secretName: monsoongrid-signing-seed
+            items:
+              - key: latest
+                path: signing-seed.hex
+        - name: runtime
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi
+# Invoker IAM (applied by provision.ps1, never a public principal):
+#   roles/run.invoker -> monsoongrid-scheduler@PROJECT_ID.iam.gserviceaccount.com
+#   roles/run.invoker -> named human principals only
+#   (no public invoker binding; see deploy/iam-bindings.yaml forbidden list)

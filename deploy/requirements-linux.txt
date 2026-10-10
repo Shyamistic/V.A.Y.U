@@ -1,0 +1,48 @@
+# MonsoonGrid runtime manifest for the Linux container image (design §9.1).
+#
+# This file exists SEPARATELY from the repo-root requirements.lock on purpose.
+# requirements.lock is a hash-pinned *Windows* lock: its single --hash per
+# distribution is the win_amd64 wheel for numpy/scipy/cryptography/cffi/ruff, so
+# `pip install --require-hashes` fails on Linux where a manylinux wheel resolves.
+# These are platform-independent `==` pins, runtime-only (no pytest/ruff/etc).
+#
+# Deliberate differences from requirements.lock, each with a verified reason:
+#   - colorama        omitted: Windows-only `click` dependency.
+#   - anyio==4.15.1   pinned exactly: this version dropped the `sniffio` requirement
+#                     (verified in its METADATA; `import anyio` succeeds without sniffio).
+#                     An older anyio would reintroduce a sniffio dependency this file
+#                     does not satisfy.
+#   - dev-only tools  (pytest, hypothesis, ruff, iniconfig, pluggy, attrs,
+#                     sortedcontainers, packaging) live in requirements-linux-dev.txt
+#                     and are installed only in the Cloud Build test step.
+#   - python-dotenv   retained for pyproject parity; imported nowhere in src/ (R-doc).
+#
+# Hash pinning (R-1): Linux wheel hashes cannot be generated from this host (no PyPI
+# network access). docs/deployment.md carries the `pip download` + `pip hash` command
+# to produce deploy/requirements-linux.hashes inside the build container and the
+# one-line Dockerfile switch to `--require-hashes`. Until then this installs from
+# unhashed pins, which is a genuine supply-chain gap recorded as residual risk R-1.
+annotated-types==0.8.0
+anyio==4.15.1
+certifi==2026.7.22
+cffi==2.1.1
+click==8.5.0
+cryptography==44.0.0
+fastapi==0.115.6
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.20
+numpy==2.2.2
+pycparser==3.0
+pydantic==2.10.5
+pydantic-core==2.27.2
+python-dotenv==1.0.1
+scipy==1.15.1
+starlette==0.41.3
+typing-extensions==4.16.0
+uvicorn==0.34.0
+# Agentic layer: Vertex AI Gemini via the unified google-genai SDK (design: the
+# GeminiBrain falls back to the deterministic brain if this import or the call
+# fails, so an unreachable Vertex never breaks the service).
+google-genai==1.0.0

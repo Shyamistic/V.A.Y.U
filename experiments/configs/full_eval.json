@@ -1,0 +1,10 @@
+{
+  "experiment": "full_eval",
+  "seed": 20260101,
+  "total_budget_hours": 2.0,
+  "allow_archive_as_issued": false,
+  "alpha_nominal": 0.20,
+  "taus": [0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.98],
+  "dsm_band_regimes": ["pre_2026_04_01", "post_2026_04_01"],
+  "_assumptions": "every value here is a scenario_assumption per design \u00a717"
+}

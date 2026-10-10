@@ -681,6 +681,9 @@ ROUTE_POLICY: tuple[RoutePolicy, ...] = (
     _rp("GET", rf"/certificates/{_P}", ["viewer", "operator", "approver", "auditor", "admin"], "read", 8 * _KiB, 30, tenant=True),
     _rp("GET", r"/api/portfolio", ["viewer", "operator", "approver", "auditor", "admin"], "read", 8 * _KiB, 30),
     _rp("GET", r"/api/simulation/state", ["viewer", "operator", "approver", "auditor", "admin"], "read", 8 * _KiB, 30),
+    _rp("GET", r"/api/agent/deliberate", ["viewer", "operator", "approver", "auditor", "admin"], "read", 8 * _KiB, 30, tenant=True),
+    _rp("GET", r"/api/workspace", ["viewer", "operator", "approver", "auditor", "admin"], "read", 8 * _KiB, 30, tenant=True),
+    _rp("GET", r"/api/session", ["viewer", "operator", "approver", "auditor", "admin"], "read", 8 * _KiB, 30),
     _rp("POST", r"/replays", ["operator"], "mutating_heavy", 64 * _KiB, 295),
     _rp("POST", rf"/replays/{_P}/advance", ["operator"], "mutating", _MiB, 60, tenant=True),
     _rp("POST", r"/validate", ["operator"], "mutating", _MiB, 60, tenant=True),
@@ -692,7 +695,7 @@ ROUTE_POLICY: tuple[RoutePolicy, ...] = (
     _rp("POST", r"/api/multimodal/nowcast", ["operator"], "mutating_heavy", _MiB, 60),
     # /ui and / are default-denied in production; allowed in development
     _rp("GET", r"/", ["__ui__"], "read", _KiB, 10),
-    _rp("GET", rf"/ui/{_P}", ["__ui__"], "read", _KiB, 10),
+    _rp("GET", r"/ui/.*", ["__ui__"], "read", _KiB, 10),
     _rp("GET", r"/ui", ["__ui__"], "read", _KiB, 10),
     # terminal default-deny
     _rp(r"(?!GET$|HEAD$|OPTIONS$).*", r".*", ["admin"], "mutating", 64 * _KiB, 30),
@@ -990,6 +993,7 @@ class AuthMiddleware:
         request = Request(scope, receive=receive)
         policy = policy_for(request.method, request.url.path)
         request.state.route_policy = policy
+        request.state.auth_environment = self.config.env
         request.state.route_template = _template(request.url.path)
 
         # UI gate: denied in production, allowed in development.

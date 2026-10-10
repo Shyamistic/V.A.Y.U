@@ -1,0 +1,16 @@
+{
+  "comment": "Cloud Monitoring alert policies (design §7.4). notificationChannels is EMPTY so importing cannot page an unintended address.",
+  "notificationChannels": [],
+  "policies": [
+    {"displayName": "decision-slot-missed", "severity": "page", "condition": "no decision log record for a scheduled slot within 300s of its boundary"},
+    {"displayName": "decision-latency-breach", "severity": "ticket", "condition": "p95 request latency on /planning > 60s for 15 min"},
+    {"displayName": "fallback-rate-high", "severity": "ticket", "condition": "planner_fallback_total rate > 10% of validator_decisions_total over 1h"},
+    {"displayName": "certificate-verification-failed", "severity": "page", "condition": "any certificate_operations_total{operation=verify,outcome=failed} increment"},
+    {"displayName": "self-approval-attempt", "severity": "page", "condition": "any approval_rejections_total{code=APPROVAL_SELF_APPROVAL} increment"},
+    {"displayName": "authz-denial-spike", "severity": "ticket", "condition": "authz_denials_total > 20 in 5 min"},
+    {"displayName": "auth-keys-unavailable", "severity": "page", "condition": "any auth_failures_total{reason=keys_unavailable} increment"},
+    {"displayName": "readiness-degraded", "severity": "ticket", "condition": "readiness_state{component=solver} == 1 for 15 min"},
+    {"displayName": "audit-chain-broken", "severity": "page", "condition": "audit_chain_verified == 0"},
+    {"displayName": "revision-mismatch", "severity": "ticket", "condition": "build_info reports more than one revision for 10 min outside a deploy window"}
+  ]
+}
