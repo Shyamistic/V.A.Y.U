@@ -94,6 +94,7 @@ def run_twin(
     total_dr_shift = 0.0
     total_dr_rebound = 0.0
     total_dr_cost = 0.0
+    total_noncritical_reduction = 0.0
     total_market_revenue = 0.0
     total_nonmarket_valuation = 0.0
     total_market_shortfall_mwh = 0.0
@@ -131,6 +132,7 @@ def run_twin(
         shift_down_by: dict[str, float] = {}
         shift_up_total = 0.0
         rebound_total = 0.0
+        reduce_by: dict[str, float] = {}
         charge_by: dict[str, float] = {}
         discharge_by: dict[str, float] = {}
         # No-action defaults (A1): zero supply, whole demand unserved.
@@ -174,6 +176,7 @@ def run_twin(
                 shift_down_by = {load_id: values[0] for load_id, values in proposal.shift_down_mw.items()}
                 shift_up_total = sum(values[0] for values in proposal.shift_up_mw.values())
                 rebound_total = sum(values[0] for values in proposal.rebound_mw.values())
+                reduce_by = {load_id: values[0] for load_id, values in (proposal.reduce_mw or {}).items()}
                 for bess in portfolio.assets_of("bess"):
                     before = energies[bess.asset_id]
                     after = next_energy(before, charge_by.get(bess.asset_id, 0.0), discharge_by.get(bess.asset_id, 0.0), bess)
@@ -181,6 +184,7 @@ def run_twin(
                     throughput += (charge_by.get(bess.asset_id, 0.0) + discharge_by.get(bess.asset_id, 0.0)) * DT_HOURS
                 shed_total = sum(shed_by.values())
                 shift_down_total = sum(shift_down_by.values())
+                reduce_total = sum(reduce_by.values())
                 # Two separately written expressions (A1): deficit vs. supply side.
                 balance = (
                     renewable_dispatch
@@ -188,6 +192,7 @@ def run_twin(
                     + import_mw
                     + shed_total
                     + shift_down_total
+                    + reduce_total
                     - demand_total_mw
                     - sum(charge_by.values())
                     - export_mw
@@ -205,6 +210,7 @@ def run_twin(
                     export_mw=export_mw,
                     shift_up_mw=shift_up_total,
                     rebound_mw=rebound_total,
+                    reduce_mw=reduce_total,
                 )
                 action_applied = True
                 if proposal.solver_result.status != "OPTIMAL":
@@ -266,6 +272,10 @@ def run_twin(
         dr_shed_mwh = sum(shed_by.get(spec.asset_id, 0.0) for spec in load_specs) * DT_HOURS
         dr_shift_mwh = sum(shift_down_by.get(spec.asset_id, 0.0) for spec in load_specs) * DT_HOURS
         dr_rebound_mwh = rebound_total * DT_HOURS
+        # F3: unpriced voluntary non-critical reduction, kept OUT of dr_shed_mwh /
+        # dr_cost_usd so gate G2 (dr_shed_mwh > 0 => dr_cost_usd > 0) stays valid.
+        noncritical_reduction_mwh = sum(reduce_by.get(spec.asset_id, 0.0) for spec in load_specs) * DT_HOURS
+        total_noncritical_reduction += noncritical_reduction_mwh
         dr_cost = sum(
             shed_by.get(spec.asset_id, 0.0) * DT_HOURS * flex_shed.get(spec.asset_id, 0.0)
             + shift_down_by.get(spec.asset_id, 0.0) * DT_HOURS * flex_shift.get(spec.asset_id, 0.0)
@@ -394,6 +404,7 @@ def run_twin(
         build_metric("dr_shift_mwh", round(total_dr_shift, 6)),
         build_metric("dr_rebound_mwh", round(total_dr_rebound, 6)),
         build_metric("dr_cost_usd", round(total_dr_cost, 6)),
+        build_metric("noncritical_reduction_mwh", round(total_noncritical_reduction, 6)),
         build_metric("contracted_service_fraction", contracted_fraction_value, status=contracted_fraction_status, reason=contracted_fraction_reason),
         build_metric("planned_fallback_count", planned_fallback_count),
         build_metric("applied_fallback_count", applied_fallback_count),

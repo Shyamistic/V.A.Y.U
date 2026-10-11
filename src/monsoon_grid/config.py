@@ -33,6 +33,10 @@ DEFAULT_PER_SLOT_BUDGET_SECONDS = 2.0
 DEFAULT_PER_REQUEST_BUDGET_SECONDS = 8.0
 FALLBACK_ALGORITHM_VERSION = "fallback-rule-table-v1"
 SCENARIO_METHOD_VERSION = "gaussian-copula-pcg64-v1"
+# F2 maintenance: a dispatched inspection crew shortens an outage/maintenance
+# window by this many 15-minute slots (30 minutes). A crew never extends a
+# window and never shortens it below the current slot.
+CREW_SPEEDUP_SLOTS = 2
 MARKET_SUBMISSION_LAG_SLOTS = 4
 MARKET_AUCTION_SESSION_SLOTS = 2
 

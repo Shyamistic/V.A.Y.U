@@ -76,6 +76,7 @@ METRIC_REGISTRY: dict[str, MetricSpec] = {
     "dr_shift_mwh": _spec("dr_shift_mwh", "MWh", "derived", "Realized demand shifted (deferred) over the replay.", "sum of per-slot dr_shift_mwh"),
     "dr_rebound_mwh": _spec("dr_rebound_mwh", "MWh", "derived", "Realized rebound energy over the replay.", "sum of per-slot dr_rebound_mwh"),
     "dr_cost_usd": _spec("dr_cost_usd", "USD", "derived", "Priced demand response cost over the replay.", "sum of per-slot dr_cost_usd"),
+    "noncritical_reduction_mwh": _spec("noncritical_reduction_mwh", "MWh", "derived", "Voluntary bounded reduction of flexible non-critical load (unpriced; distinct from priced DR).", "sum of per-slot reduce_mw * DT"),
     "contracted_service_fraction": _spec("contracted_service_fraction", "fraction", "derived", _CONTRACTED_SERVICE_FRACTION_MEANING, "see meaning"),
     "market_revenue_usd": _spec("market_revenue_usd", "USD", "derived", "Delivered committed export revenue net of fee and loss.", "sum of per-slot market_revenue_usd"),
     "nonmarket_export_valuation_usd": _spec("nonmarket_export_valuation_usd", "USD", "derived", "Uncommitted export valued at the labelled non-market rate.", "sum of per-slot nonmarket_export_valuation_usd"),

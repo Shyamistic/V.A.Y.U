@@ -31,7 +31,7 @@ from .contracts import (
     StageOptimum,
     ToolCall,
 )
-from .dispatch import available_generation, demand_by_load, effective_tie_capacity
+from .dispatch import available_generation, demand_by_load, effective_tie_capacity, in_maintenance
 from .fallback import fallback_plan
 from .contracts import market_delivery_due
 from .equations import slot_cost_rates
@@ -121,7 +121,7 @@ def _build_model(
     common: dict[str, int] = {}
     for bess in bess_assets:
         energy = float(current_energy.get(bess.asset_id, bess.initial_energy_mwh))
-        available = bess.enabled and bess.outage.status != "unavailable" and not any(
+        available = bess.enabled and bess.outage.status != "unavailable" and not in_maintenance(bess, slot_index) and not any(
             event.event_type == "bess_outage"
             and bess.asset_id in event.affected_ids
             and event.start_slot <= slot_index <= event.end_slot
@@ -184,19 +184,24 @@ def _build_model(
             shed_upper = load.max_shed_mw if dr_allowed else 0.0
             shift_upper = load.max_shift_mw if dr_allowed else 0.0
             rebound_upper = load.rebound_rate_mw if dr_allowed and slot_index in load.rebound_window_slots else 0.0
+            # F3: UNPRICED voluntary non-critical reduction, bounded by
+            # max_reduce_mw, gated by the same dr_allowed predicate.
+            reduce_upper = load.max_reduce_mw if dr_allowed else 0.0
             shed = model.add_variable(f"shed:{scenario_number}:{load.asset_id}", upper=shed_upper)
             shift_down = model.add_variable(f"shift_down:{scenario_number}:{load.asset_id}", upper=shift_upper)
             shift_up = model.add_variable(f"shift_up:{scenario_number}:{load.asset_id}", upper=shift_upper)
             rebound = model.add_variable(f"rebound:{scenario_number}:{load.asset_id}", upper=rebound_upper)
+            reduce_ = model.add_variable(f"reduce:{scenario_number}:{load.asset_id}", upper=reduce_upper)
             indexes[f"shed:{load.asset_id}"] = shed
             indexes[f"shift_down:{load.asset_id}"] = shift_down
             indexes[f"shift_up:{load.asset_id}"] = shift_up
             indexes[f"rebound:{load.asset_id}"] = rebound
+            indexes[f"reduce:{load.asset_id}"] = reduce_
             # A one-slot proposal cannot defer a shift commitment beyond its
             # horizon. Equal down/up preserves contracted energy in this model.
             model.add_row({shift_down: 1.0, shift_up: -1.0}, lower=0.0, upper=0.0)
             if not dr_allowed:
-                model.add_row({shed: 1.0, shift_down: 1.0, shift_up: 1.0, rebound: 1.0}, lower=0.0, upper=0.0)
+                model.add_row({shed: 1.0, shift_down: 1.0, shift_up: 1.0, rebound: 1.0, reduce_: 1.0}, lower=0.0, upper=0.0)
 
         critical_unserved = model.add_variable(f"critical_unserved:{scenario_number}", upper=sum(value for load_id, value in loads.items() if next(item for item in load_assets if item.asset_id == load_id).critical))
         noncritical_unserved = model.add_variable(f"noncritical_unserved:{scenario_number}", upper=sum(value for load_id, value in loads.items() if not next(item for item in load_assets if item.asset_id == load_id).critical))
@@ -213,6 +218,7 @@ def _build_model(
             balance[indexes[f"shift_down:{load.asset_id}"]] = balance.get(indexes[f"shift_down:{load.asset_id}"], 0.0) - 1.0
             balance[indexes[f"shift_up:{load.asset_id}"]] = balance.get(indexes[f"shift_up:{load.asset_id}"], 0.0) + 1.0
             balance[indexes[f"rebound:{load.asset_id}"]] = balance.get(indexes[f"rebound:{load.asset_id}"], 0.0) + 1.0
+            balance[indexes[f"reduce:{load.asset_id}"]] = balance.get(indexes[f"reduce:{load.asset_id}"], 0.0) - 1.0
         model.add_row(balance, lower=-sum(loads.values()), upper=-sum(loads.values()))
         model.scenario_indexes[str(scenario_number)] = indexes
 
@@ -262,6 +268,10 @@ def _build_model(
             _put(model.objectives["dr_activation"], indexes[f"shift_down:{load.asset_id}"], scenario_weight * DT_HOURS)
             _put(model.objectives["dr_activation"], indexes[f"shift_up:{load.asset_id}"], scenario_weight * DT_HOURS)
             _put(model.objectives["dr_activation"], indexes[f"rebound:{load.asset_id}"], scenario_weight * DT_HOURS)
+            # F3: the voluntary reduction carries a dr_activation penalty (so the
+            # optimizer only chooses it when it buys a higher-tier objective) but
+            # NO net_cost term — it is unpriced reliability relief, not priced DR.
+            _put(model.objectives["dr_activation"], indexes[f"reduce:{load.asset_id}"], scenario_weight * DT_HOURS)
             # A2: priced DR enters net_cost. shift is priced on shift_down only
             # (down==up is enforced); rebound carries no cost coefficient.
             _put(model.objectives["net_cost"], indexes[f"shed:{load.asset_id}"], scenario_weight * DT_HOURS * rates.shed_usd_per_mwh.get(load.asset_id, 0.0))
@@ -360,6 +370,7 @@ def _proposal_from_solution(
     shift_down = {asset.asset_id: [round(max(0.0, solution[indexes[f"shift_down:{asset.asset_id}"]]), 6)] for asset in portfolio.assets_of("load_class")}
     shift_up = {asset.asset_id: [round(max(0.0, solution[indexes[f"shift_up:{asset.asset_id}"]]), 6)] for asset in portfolio.assets_of("load_class")}
     rebound = {asset.asset_id: [round(max(0.0, solution[indexes[f"rebound:{asset.asset_id}"]]), 6)] for asset in portfolio.assets_of("load_class")}
+    reduce_ = {asset.asset_id: [round(max(0.0, solution[indexes[f"reduce:{asset.asset_id}"]]), 6)] for asset in portfolio.assets_of("load_class")}
     provenance = _prov(replay_id, path.path_sha256 or path.scenario_id, solver.method_hash)
     return ActionProposal(
         proposal_id=f"{replay_id}:proposal:{slot_index}",
@@ -375,6 +386,7 @@ def _proposal_from_solution(
         shift_down_mw=shift_down,
         shift_up_mw=shift_up,
         rebound_mw=rebound,
+        reduce_mw=reduce_,
         market_intents=[intent for intent in portfolio.market_intents if market_delivery_due(intent, delivery_slot=slot_index)],
         policy_mode=policy_mode,
         solver_result=solver,

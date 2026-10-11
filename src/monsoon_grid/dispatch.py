@@ -25,6 +25,20 @@ def partition_unserved(
     return critical, noncritical
 
 
+def in_maintenance(asset, slot: int) -> bool:
+    """Shared predicate: True when ``asset`` is in a scheduled/active maintenance
+    window covering ``slot``. A ``none``/``complete`` status or a null window has
+    no effect. This is the single availability predicate consumed by
+    ``available_generation`` (renewables), the planner BESS predicate, and the
+    validator BESS predicate so all three agree by construction (F2)."""
+    maintenance = getattr(asset, "maintenance", None)
+    if maintenance is None or maintenance.status not in ("scheduled", "active"):
+        return False
+    if maintenance.start_slot is None or maintenance.end_slot is None:
+        return False
+    return maintenance.start_slot <= slot <= maintenance.end_slot
+
+
 def slot_supply_mw(
     *,
     renewable_dispatch_mw: float,
@@ -36,14 +50,19 @@ def slot_supply_mw(
     export_mw: float,
     shift_up_mw: float,
     rebound_mw: float,
+    reduce_mw: float = 0.0,
 ) -> float:
-    """Net slot supply used by the twin and the validator balance residual."""
+    """Net slot supply used by the twin and the validator balance residual.
+
+    ``reduce_mw`` is the UNPRICED voluntary non-critical reduction lever (F3); it
+    increases net supply exactly as ``shed_mw`` does (same ``+`` sign)."""
     return (
         renewable_dispatch_mw
         + discharge_mw
         + import_mw
         + shed_mw
         + shift_down_mw
+        + reduce_mw
         - charge_mw
         - export_mw
         - shift_up_mw
@@ -72,7 +91,7 @@ def available_generation(portfolio: PortfolioFixture, path: ScenarioPath, events
     unavailable = {asset_id for event in events if event.event_type == "bess_outage" and event.start_slot <= slot <= event.end_slot for asset_id in event.affected_ids}
     result: dict[str, float] = {}
     for asset in sorted([*portfolio.assets_of("solar_farm"), *portfolio.assets_of("wind_farm")], key=lambda item: item.asset_id):
-        if asset.asset_id in unavailable or not asset.enabled or asset.outage.status == "unavailable":
+        if asset.asset_id in unavailable or not asset.enabled or asset.outage.status == "unavailable" or in_maintenance(asset, slot):
             result[asset.asset_id] = 0.0
             continue
         value = path.renewable_available_mw[asset.asset_id][slot]

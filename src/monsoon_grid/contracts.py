@@ -232,6 +232,10 @@ class LoadClassSpec(AssetBase):
     contracted_rebound_mwh: float = Field(default=0, ge=0)
     shed_cost_usd_per_mwh: float = Field(ge=0)
     shift_cost_usd_per_mwh: float = Field(ge=0)
+    # F3: upper bound for the UNPRICED voluntary non-critical reduction lever.
+    # Defaults to 0 (lever off). Reliability-relief capacity on the load class,
+    # NOT a contracted market product (so the DR-contract model omits it).
+    max_reduce_mw: float = Field(default=0, ge=0)
     opt_in: bool = True
     opt_out: bool = False
 
@@ -241,8 +245,12 @@ class LoadClassSpec(AssetBase):
             raise ValueError("critical loads cannot have DR capacity")
         if self.critical and (self.shed_cost_usd_per_mwh or self.shift_cost_usd_per_mwh):
             raise ValueError("critical loads must carry zero flexibility cost")
+        if self.critical and self.max_reduce_mw:
+            raise ValueError("critical loads cannot declare non-critical reduction capacity")
         if self.opt_out and (self.max_shed_mw or self.max_shift_mw or self.rebound_rate_mw):
             raise ValueError("opt-out loads cannot declare active DR capacity")
+        if self.opt_out and self.max_reduce_mw:
+            raise ValueError("opt-out loads cannot declare non-critical reduction capacity")
         if any(slot < 0 or slot >= SLOT_COUNT for slot in self.rebound_window_slots):
             raise ValueError("rebound window slot outside replay")
         return self
@@ -1010,6 +1018,10 @@ class ActionProposal(RecordModel):
     shift_down_mw: dict[str, list[float]]
     shift_up_mw: dict[str, list[float]]
     rebound_mw: dict[str, list[float]]
+    # F3: a distinct, UNPRICED voluntary non-critical-load reduction lever, keyed
+    # by load id with a single-slot list. DEFAULTED so the fallback proposal
+    # (which omits it) still validates; an empty dict means "no reduction".
+    reduce_mw: dict[str, list[float]] = Field(default_factory=dict)
     market_intents: list[MarketIntent] = Field(default_factory=list)
     policy_mode: PolicyMode
     solver_result: SolverResult
@@ -1029,6 +1041,7 @@ class ActionProposal(RecordModel):
             self.shift_down_mw,
             self.shift_up_mw,
             self.rebound_mw,
+            self.reduce_mw,
         ]
         for mapping in maps:
             for key, values in mapping.items():

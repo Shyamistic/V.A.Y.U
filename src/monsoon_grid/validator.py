@@ -19,7 +19,7 @@ from .contracts import (
     Violation,
     market_delivery_due,
 )
-from .dispatch import available_generation, demand_by_load, effective_tie_capacity, next_energy, partition_unserved, slot_supply_mw
+from .dispatch import available_generation, demand_by_load, effective_tie_capacity, in_maintenance, next_energy, partition_unserved, slot_supply_mw
 
 VALIDATOR_VERSION = "validator-independent-v2"
 
@@ -99,6 +99,9 @@ def validate_proposal(
     _check_roster(proposal.shift_down_mw, {asset.asset_id for asset in load_assets}, "shift_down_mw", proposal_id, violations)
     _check_roster(proposal.shift_up_mw, {asset.asset_id for asset in load_assets}, "shift_up_mw", proposal_id, violations)
     _check_roster(proposal.rebound_mw, {asset.asset_id for asset in load_assets}, "rebound_mw", proposal_id, violations)
+    # F3: reduce_mw is defaulted/optional; only police the roster when present.
+    if proposal.reduce_mw:
+        _check_roster(proposal.reduce_mw, {asset.asset_id for asset in load_assets}, "reduce_mw", proposal_id, violations)
     for mapping, field in (
         (proposal.renewable_dispatch_mw, "renewable_dispatch_mw"),
         (proposal.bess_charge_mw, "bess_charge_mw"),
@@ -107,6 +110,7 @@ def validate_proposal(
         (proposal.shift_down_mw, "shift_down_mw"),
         (proposal.shift_up_mw, "shift_up_mw"),
         (proposal.rebound_mw, "rebound_mw"),
+        (proposal.reduce_mw, "reduce_mw"),
     ):
         _check_nonnegative(mapping, field, proposal_id, violations)
     if proposal.grid_import_mw[0] < -BESS_NUMERIC_TOLERANCE_MWH or proposal.grid_export_mw[0] < -BESS_NUMERIC_TOLERANCE_MWH:
@@ -126,7 +130,7 @@ def validate_proposal(
             violations.append(_violation("BESS_SIMULTANEOUS_CHARGE_DISCHARGE", "fatal", f"bess.{bess.asset_id}", "charge and discharge are mutually exclusive", charge, 0.0, "MW", True, proposal_id))
         if charge > bess.charge_rate_mw + BESS_NUMERIC_TOLERANCE_MWH or discharge > bess.discharge_rate_mw + BESS_NUMERIC_TOLERANCE_MWH:
             violations.append(_violation("BESS_RATE", "fatal", f"bess.{bess.asset_id}", "power <= declared rate", max(charge, discharge), max(bess.charge_rate_mw, bess.discharge_rate_mw), "MW", True, proposal_id))
-        unavailable = bess.outage.status == "unavailable" or any(event.event_type == "bess_outage" and bess.asset_id in event.affected_ids and event.start_slot <= slot_index <= event.end_slot for event in events)
+        unavailable = bess.outage.status == "unavailable" or in_maintenance(bess, slot_index) or any(event.event_type == "bess_outage" and bess.asset_id in event.affected_ids and event.start_slot <= slot_index <= event.end_slot for event in events)
         if unavailable and (charge > BESS_NUMERIC_TOLERANCE_MWH or discharge > BESS_NUMERIC_TOLERANCE_MWH):
             violations.append(_violation("ASSET_UNAVAILABLE", "fatal", f"bess.{bess.asset_id}", "unavailable BESS must have zero dispatch", max(charge, discharge), 0.0, "MW", True, proposal_id))
         try:
@@ -166,15 +170,20 @@ def validate_proposal(
         down = proposal.shift_down_mw.get(load.asset_id, [0.0])[0]
         up = proposal.shift_up_mw.get(load.asset_id, [0.0])[0]
         rebound = proposal.rebound_mw.get(load.asset_id, [0.0])[0]
+        reduce_ = proposal.reduce_mw.get(load.asset_id, [0.0])[0] if proposal.reduce_mw else 0.0
         stale_no_dr = load.asset_id in no_dr_signals or ("flexible_noncritical_load" in no_dr_signals and not load.critical)
-        if load.critical and any(value > BESS_NUMERIC_TOLERANCE_MWH for value in (shed, down, up, rebound)):
-            violations.append(_violation("CRITICAL_LOAD_SHED", "fatal", f"load.{load.asset_id}", "critical loads never shed or shifted", max(shed, down, up, rebound), 0.0, "MW", False, proposal_id))
-        if load.opt_out and any(value > BESS_NUMERIC_TOLERANCE_MWH for value in (shed, down, up, rebound)):
-            violations.append(_violation("DR_OPT_OUT", "fatal", f"load.{load.asset_id}", "opt-out load cannot be altered", max(shed, down, up, rebound), 0.0, "MW", False, proposal_id))
-        if stale_no_dr and any(value > BESS_NUMERIC_TOLERANCE_MWH for value in (shed, down, up, rebound)):
-            violations.append(_violation("DR_QUALITY_BLOCKED", "fatal", f"load.{load.asset_id}", "stale or invalid DR telemetry disables optional DR", max(shed, down, up, rebound), 0.0, "MW", True, proposal_id))
+        if load.critical and any(value > BESS_NUMERIC_TOLERANCE_MWH for value in (shed, down, up, rebound, reduce_)):
+            violations.append(_violation("CRITICAL_LOAD_SHED", "fatal", f"load.{load.asset_id}", "critical loads never shed, shifted, or reduced", max(shed, down, up, rebound, reduce_), 0.0, "MW", False, proposal_id))
+        if load.opt_out and any(value > BESS_NUMERIC_TOLERANCE_MWH for value in (shed, down, up, rebound, reduce_)):
+            violations.append(_violation("DR_OPT_OUT", "fatal", f"load.{load.asset_id}", "opt-out load cannot be altered", max(shed, down, up, rebound, reduce_), 0.0, "MW", False, proposal_id))
+        if stale_no_dr and any(value > BESS_NUMERIC_TOLERANCE_MWH for value in (shed, down, up, rebound, reduce_)):
+            violations.append(_violation("DR_QUALITY_BLOCKED", "fatal", f"load.{load.asset_id}", "stale or invalid DR telemetry disables optional DR", max(shed, down, up, rebound, reduce_), 0.0, "MW", True, proposal_id))
         if shed > load.max_shed_mw + BESS_NUMERIC_TOLERANCE_MWH or down > load.max_shift_mw + BESS_NUMERIC_TOLERANCE_MWH or up > load.max_shift_mw + BESS_NUMERIC_TOLERANCE_MWH:
             violations.append(_violation("DR_LIMIT", "fatal", f"load.{load.asset_id}", "DR values within contracted scalar limits", max(shed, down, up), max(load.max_shed_mw, load.max_shift_mw), "MW", True, proposal_id))
+        # F3: the voluntary reduction lever is bounded by max_reduce_mw. Unpriced,
+        # distinct from priced DR; critical/opt-out already rejected above.
+        if reduce_ > load.max_reduce_mw + BESS_NUMERIC_TOLERANCE_MWH:
+            violations.append(_violation("REDUCE_LIMIT", "fatal", f"load.{load.asset_id}.reduce_mw", "non-critical reduction within max_reduce_mw", reduce_, load.max_reduce_mw, "MW", True, proposal_id))
         if abs(down - up) > BESS_NUMERIC_TOLERANCE_MWH:
             violations.append(_violation("DR_CONSERVATION", "fatal", f"load.{load.asset_id}", "shift energy is conserved by the proposal deadline", down * DT_HOURS - up * DT_HOURS, 0.0, "MWh", True, proposal_id))
         previous_rebound = sum(float(value) for value in history.get(load.asset_id, {}).get("rebound", ())) * DT_HOURS
@@ -199,6 +208,7 @@ def validate_proposal(
     shift_down_total = sum(proposal.shift_down_mw.get(asset.asset_id, [0.0])[0] for asset in load_assets)
     shift_up_total = sum(proposal.shift_up_mw.get(asset.asset_id, [0.0])[0] for asset in load_assets)
     rebound_total = sum(proposal.rebound_mw.get(asset.asset_id, [0.0])[0] for asset in load_assets)
+    reduce_total = sum(proposal.reduce_mw.get(asset.asset_id, [0.0])[0] for asset in load_assets) if proposal.reduce_mw else 0.0
     demand_total = sum(loads.values())
     balance_residual_mw = slot_supply_mw(
         renewable_dispatch_mw=dispatched,
@@ -210,6 +220,7 @@ def validate_proposal(
         export_mw=grid_export,
         shift_up_mw=shift_up_total,
         rebound_mw=rebound_total,
+        reduce_mw=reduce_total,
     ) - demand_total
     total_unserved_mwh = max(0.0, -balance_residual_mw) * DT_HOURS
     critical_unserved, _ = partition_unserved(total_unserved_mwh, loads, load_assets)
