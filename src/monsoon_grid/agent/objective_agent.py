@@ -394,7 +394,10 @@ class ObjectiveSelectionAgent:
                         f"violations=[{violation_codes}]")
 
         # Concrete action cluster the chosen criteria produced (P4 "takes actions").
-        actions, conflict_note = extract_actions(agent_plan.proposal, chosen_order, features)
+        actions, conflict_note = extract_actions(
+            agent_plan.proposal, chosen_order, features,
+            portfolio=self.portfolio, events=events, slot_index=slot_index,
+        )
 
         # Regret vs the declared preset (same situation, fixed ordering).
         preset_plan, preset_decision = run(POLICY_OBJECTIVES[preset_policy])
@@ -435,13 +438,25 @@ _RESERVE_LABEL = {"critical_service_margin": "critical service", "required_relia
                   "bess_wear": "battery wear", "dr_activation": "demand response", "reliability_event_count": "reliability"}
 
 
-def extract_actions(proposal: Any, order: list[str], features: SituationFeatures) -> tuple[list[AgentAction], str]:
+def extract_actions(
+    proposal: Any,
+    order: list[str],
+    features: SituationFeatures,
+    *,
+    portfolio: Any = None,
+    events: Any = None,
+    slot_index: int | None = None,
+) -> tuple[list[AgentAction], str]:
     """Map the realized ActionProposal into the brief's action vocabulary, each
     attributed to the objective in the chosen ordering that most plausibly drove
     it, plus a human conflict note describing how ties were broken.
 
     This reads the OPTIMIZER's realized dispatch (not the agent's words); it is
     the concrete 'the agent takes actions' surface the problem statement asks for.
+
+    ``portfolio``/``events``/``slot_index`` are keyword-only and optional so the
+    F2 maintenance lines and the F3 non-critical-reduction line can be surfaced;
+    when absent the function degrades to the original dispatch-only behaviour.
     """
     eps = 0.05
     actions: list[AgentAction] = []
@@ -499,7 +514,7 @@ def extract_actions(proposal: Any, order: list[str], features: SituationFeatures
         actions.append(AgentAction("renewable", "Dispatch all available renewables", "portfolio", round(dispatched, 2), "MW",
                                     "curtailment", "No curtailment — maximizing clean-energy utilization."))
 
-    # Demand management.
+    # Demand management (priced DR).
     dr_total = sum(shed.values()) + sum(shift_down.values())
     if dr_total > eps:
         actions.append(AgentAction("demand", "Trigger demand response", "flexible loads", round(dr_total, 2), "MW",
@@ -507,6 +522,35 @@ def extract_actions(proposal: Any, order: list[str], features: SituationFeatures
     else:
         actions.append(AgentAction("demand", "No demand response", "flexible loads", 0.0, "MW",
                                     "dr_activation", "Flexible loads served normally; critical load never shed."))
+
+    # F3: distinct UNPRICED voluntary non-critical reduction line (separate from
+    # the priced-DR line above; both can coexist in a slot).
+    reduce_map = first(getattr(proposal, "reduce_mw", {}) or {})
+    reduce_total = sum(reduce_map.values())
+    if reduce_total > eps:
+        actions.append(AgentAction("demand", "Reduce non-critical load", "flexible loads", round(reduce_total, 2), "MW",
+                                    "reliability_event_count",
+                                    "Voluntary, bounded reduction of flexible non-critical consumption; critical load "
+                                    "untouched; distinct from priced demand response. SIMULATED TWIN."))
+
+    # F2: maintenance lines, one per asset in a scheduled/active window covering
+    # this slot. Modelled as software-twin availability transitions, never a
+    # dispatched command; the validator remains the sole safety authority.
+    if portfolio is not None and slot_index is not None:
+        from ..dispatch import in_maintenance
+        from ..maintenance import delay_window, dispatch_crew
+        event_list = list(events or [])
+        realized_path = getattr(getattr(portfolio, "_realized_path", None), "scenario_id", None)
+        for asset in sorted(getattr(portfolio, "assets", []), key=lambda item: item.asset_id):
+            if not in_maintenance(asset, slot_index):
+                continue
+            maintenance = asset.maintenance
+            delayable = not maintenance.cannot_delay
+            driver = "bess_wear" if asset.kind == "bess" else "reliability_event_count"
+            crew_state, crew_note = dispatch_crew(maintenance, slot_index)
+            note = (f"schedule window {maintenance.start_slot}..{maintenance.end_slot} on {asset.asset_id}; "
+                    f"{'delayable' if delayable else 'pinned (cannot_delay)'}; {crew_note}; SIMULATED TWIN")
+            actions.append(AgentAction("maintenance", "Maintenance window", asset.asset_id, 0.0, "slots", driver, note))
 
     # Conflict note: how the ordering broke the key trade-off this slot.
     if reliability_leads and cost_rank >= 2:
