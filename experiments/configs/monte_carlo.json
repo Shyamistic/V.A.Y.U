@@ -1,0 +1,7 @@
+{
+  "seed": 20260701,
+  "n_days": 24,
+  "operators": ["orchestrator", "greedy_p50", "no_battery"],
+  "policy_mode": "balanced",
+  "total_budget_hours": 1.0
+}

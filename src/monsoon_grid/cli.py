@@ -184,39 +184,54 @@ def _approval_audit_event(approval: ApprovalEvent) -> EventRecord:
     )
 
 
-def execute_replay(*, seed: int, policy_mode: str, replay_id: str | None = None, adapter_state: str = "DISABLED", deadline_seconds: float = REPLAY_BUDGET_SECONDS) -> ReplayExecution:
-    start = time.monotonic()
-    _configure_demo_trust()
-    ensure_runtime_dirs()
-    replay_id = replay_id or f"replay-{seed}-{policy_mode}"
-    carbon_factor = load_carbon_factor()
-    adapter = VayuContextAdapter(
-        enabled=adapter_state == "VAYU_CONTEXT_ONLY",
-        fixture_path=Path(os.environ["MONSOON_GRID_VAYU_CONTEXT_PATH"]) if os.environ.get("MONSOON_GRID_VAYU_CONTEXT_PATH") else None,
-        allowlisted_url=os.environ.get("MONSOON_GRID_VAYU_CONTEXT_URL"),
-        expected_sha256=os.environ.get("MONSOON_GRID_VAYU_CONTEXT_SHA256"),
-        allowlisted_urls=tuple(filter(None, os.environ.get("MONSOON_GRID_VAYU_ALLOWLIST", "").split(","))),
-    )
-    weather_context = adapter.read()
-    portfolio = load_demo_portfolio().model_copy(update={"seed": seed, "fixture_set_hash": fixture_set_hash()})
-    events = _event_replay(load_demo_events(), replay_id)
-    scenarios = generate_scenarios(portfolio, seed=seed)
+@dataclass
+class ReplayLoopResult:
+    twin: TwinResult
+    proposals: dict[int, ActionProposal]
+    decisions: dict[int, SafetyDecision]
+    approvals: dict[int, ApprovalEvent]
+    quality_reports: dict[int, QualityGateReport]
+    events: list[EventRecord]
+    fallback_count: int
+    final_energy_mwh: dict[str, float]
+    final_flow_mw: float
+
+
+def replay_twin(
+    portfolio: PortfolioFixture,
+    scenarios: Any,
+    events: list[EventRecord],
+    *,
+    replay_id: str,
+    policy_mode: str,
+    carbon_factor: CarbonFactorAssumption,
+    deadline: float,
+    demo_overrides: bool = False,
+) -> ReplayLoopResult:
+    """Run the real agentic per-slot replay loop and roll it into a TwinResult.
+
+    Takes the FULL five-path ``ScenarioSet`` and passes
+    ``scenario_paths=scenarios.paths`` to ``plan_next`` so the scenario-robust
+    MILP is driven exactly as production does (a single realized path would
+    silently collapse the robust solve). The two demo-only hacks (slot-42 forced
+    policy, slot-41 hand-authored dispatch) fire ONLY when ``demo_overrides`` is
+    True; the Monte Carlo loop passes False so each MC day is a clean,
+    optimizer-only seeded day with no hand-authored operator-facing number.
+    """
     path = next(item for item in scenarios.paths if item.scenario_id == scenarios.realized_path_id)
-    forecasts = build_forecasts(portfolio)
     quality_reports: dict[int, QualityGateReport] = {}
     proposals: dict[int, ActionProposal] = {}
     decisions: dict[int, SafetyDecision] = {}
     approvals: dict[int, ApprovalEvent] = {}
     energy_state = {asset.asset_id: asset.initial_energy_mwh for asset in portfolio.assets if asset.kind == "bess"}
     previous_flow = portfolio.initial_flow_mw
-    deadline = start + min(float(deadline_seconds), REPLAY_BUDGET_SECONDS)
     fallback_count = 0
     for slot in range(portfolio.slot_count):
         report = _quality_report(portfolio, replay_id, slot, events)
         quality_reports[slot] = report
         remaining = deadline - time.monotonic()
         force_fallback = report.use_fallback or remaining <= FINALIZATION_BUDGET_SECONDS
-        selected_policy = "reliability_first" if slot == 42 else policy_mode
+        selected_policy = "reliability_first" if (demo_overrides and slot == 42) else policy_mode
         allowed_dr = _dr_allowed(report, portfolio)
         result: PlanResult = plan_next(
             portfolio,
@@ -239,7 +254,7 @@ def execute_replay(*, seed: int, policy_mode: str, replay_id: str | None = None,
         proposal = result.proposal
         if proposal is None:
             continue
-        if slot == 41:
+        if demo_overrides and slot == 41:
             proposal = proposal.model_copy(update={"grid_import_mw": [75.0], "grid_export_mw": [0.0], "bess_charge_mw": {**proposal.bess_charge_mw, "bess-a": [0.0]}, "bess_discharge_mw": {**proposal.bess_discharge_mw, "bess-a": [8.0]}})
         decision = validate_proposal(
             portfolio,
@@ -276,6 +291,56 @@ def execute_replay(*, seed: int, policy_mode: str, replay_id: str | None = None,
         quality_by_slot={slot: report.decisions for slot, report in quality_reports.items()},
         carbon_factor=carbon_factor,
     )
+    return ReplayLoopResult(
+        twin=twin,
+        proposals=proposals,
+        decisions=decisions,
+        approvals=approvals,
+        quality_reports=quality_reports,
+        events=events,
+        fallback_count=fallback_count,
+        final_energy_mwh=twin.final_energy_mwh,
+        final_flow_mw=twin.final_flow_mw,
+    )
+
+
+def execute_replay(*, seed: int, policy_mode: str, replay_id: str | None = None, adapter_state: str = "DISABLED", deadline_seconds: float = REPLAY_BUDGET_SECONDS) -> ReplayExecution:
+    start = time.monotonic()
+    _configure_demo_trust()
+    ensure_runtime_dirs()
+    replay_id = replay_id or f"replay-{seed}-{policy_mode}"
+    carbon_factor = load_carbon_factor()
+    adapter = VayuContextAdapter(
+        enabled=adapter_state == "VAYU_CONTEXT_ONLY",
+        fixture_path=Path(os.environ["MONSOON_GRID_VAYU_CONTEXT_PATH"]) if os.environ.get("MONSOON_GRID_VAYU_CONTEXT_PATH") else None,
+        allowlisted_url=os.environ.get("MONSOON_GRID_VAYU_CONTEXT_URL"),
+        expected_sha256=os.environ.get("MONSOON_GRID_VAYU_CONTEXT_SHA256"),
+        allowlisted_urls=tuple(filter(None, os.environ.get("MONSOON_GRID_VAYU_ALLOWLIST", "").split(","))),
+    )
+    weather_context = adapter.read()
+    portfolio = load_demo_portfolio().model_copy(update={"seed": seed, "fixture_set_hash": fixture_set_hash()})
+    events = _event_replay(load_demo_events(), replay_id)
+    scenarios = generate_scenarios(portfolio, seed=seed)
+    path = next(item for item in scenarios.paths if item.scenario_id == scenarios.realized_path_id)
+    forecasts = build_forecasts(portfolio)
+    deadline = start + min(float(deadline_seconds), REPLAY_BUDGET_SECONDS)
+    loop = replay_twin(
+        portfolio,
+        scenarios,
+        events,
+        replay_id=replay_id,
+        policy_mode=policy_mode,
+        carbon_factor=carbon_factor,
+        deadline=deadline,
+        demo_overrides=True,
+    )
+    quality_reports = loop.quality_reports
+    proposals = loop.proposals
+    decisions = loop.decisions
+    approvals = loop.approvals
+    events = loop.events
+    fallback_count = loop.fallback_count
+    twin = loop.twin
     baseline_twin = run_greedy_p50_baseline(portfolio, path, _event_replay(load_demo_events(), f"{replay_id}:baseline"), replay_id=replay_id, carbon_factor=carbon_factor)
     elapsed = time.monotonic() - start
     return ReplayExecution(

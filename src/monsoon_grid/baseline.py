@@ -25,6 +25,48 @@ def _approval(replay_id: str, slot: int, proposal: ActionProposal, energy: dict[
     )
 
 
+def run_no_battery_baseline(portfolio: PortfolioFixture, path: ScenarioPath, events: list[EventRecord], *, replay_id: str, carbon_factor: CarbonFactorAssumption | None = None) -> TwinResult:
+    """Greedy/P50 operator with every BESS zeroed per slot before validation.
+
+    Mirrors ``run_greedy_p50_baseline`` but models an operator with no storage:
+    the fallback proposal's per-asset BESS charge/discharge are set to a
+    single-element ``[0.0]`` list for every battery, then validated and applied
+    through the SAME validator and twin so the KPI path is identical."""
+    proposals: dict[int, ActionProposal] = {}
+    decisions: dict[int, SafetyDecision] = {}
+    approvals: dict[int, ApprovalEvent] = {}
+    energy = {asset.asset_id: asset.initial_energy_mwh for asset in portfolio.assets if asset.kind == "bess"}
+    flow = portfolio.initial_flow_mw
+    for slot in range(96):
+        proposal, _, _ = fallback_plan(portfolio, path, events, replay_id=f"{replay_id}:no_battery", slot_index=slot, policy_mode="balanced", energy_state=energy, previous_flow_mw=flow, reason="no-battery-baseline")
+        proposal = proposal.model_copy(update={
+            "bess_charge_mw": {asset_id: [0.0] for asset_id in proposal.bess_charge_mw},
+            "bess_discharge_mw": {asset_id: [0.0] for asset_id in proposal.bess_discharge_mw},
+        })
+        decision = validate_proposal(portfolio, path, events, proposal, replay_id=f"{replay_id}:no_battery", slot_index=slot, energy_state=energy, previous_flow_mw=flow)
+        proposals[slot] = proposal
+        decisions[slot] = decision
+        if decision.status == "ACCEPTED":
+            approvals[slot] = _approval(f"{replay_id}:no_battery", slot, proposal, energy, flow)
+            # BESS is zeroed, so stored energy never changes; still step the
+            # canonical transition for parity with the greedy baseline.
+            for asset in portfolio.assets:
+                if asset.kind == "bess":
+                    energy[asset.asset_id] = bess_energy_next(energy[asset.asset_id], 0.0, 0.0, asset)
+            flow = proposal.grid_import_mw[0] - proposal.grid_export_mw[0]
+    return run_twin(
+        portfolio,
+        path,
+        events,
+        proposals,
+        decisions,
+        replay_id=f"{replay_id}:no_battery",
+        applied_slots={slot for slot, decision in decisions.items() if decision.status == "ACCEPTED"},
+        approvals=approvals,
+        carbon_factor=carbon_factor or load_carbon_factor(),
+    )
+
+
 def run_greedy_p50_baseline(portfolio: PortfolioFixture, path: ScenarioPath, events: list[EventRecord], *, replay_id: str, carbon_factor: CarbonFactorAssumption | None = None) -> TwinResult:
     proposals: dict[int, ActionProposal] = {}
     decisions: dict[int, SafetyDecision] = {}
