@@ -36,3 +36,7 @@ runtime/*.png
 # Internal AI-pipeline and IDE workflow artifacts
 .agents/
 .kiro/
+
+# Internal strategy docs — never publish (kept local only)
+docs/COMPETITIVE_ANALYSIS.md
+docs/PITCH_DECK_CONTENT.md
