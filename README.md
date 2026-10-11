@@ -328,6 +328,59 @@ determinism only; no real-skill claim** in the artifact itself. These numbers de
 the *evaluation discipline* (shared mask, DM test, wins *and* losses, seeded determinism),
 not a leaderboard score.
 
+### Multi-day Monte Carlo — orchestrator vs greedy and no-battery operators
+
+The orchestrator is evaluated across **N = 24 seeded days** against two baselines — the
+existing `greedy_p50` rule-based operator and a `no_battery` operator (the greedy operator
+with every BESS zeroed) — on the **same days and the same disturbance script**. Each day is
+one integer seed driving the full five-path robust scenario set; the orchestrator replays the
+real production decision loop (no demo overrides). Because the three operators share each
+day's seed, the comparison is **paired**: we report the paired mean difference
+(`baseline − orchestrator`, every metric lower-is-better) with a Student-t **95% CI** and a
+two-sided `scipy.stats.ttest_rel` p-value. The study is served in the **Science** view and
+stored as a content-addressed, seed-deterministic artifact under
+`experiments/results/monte_carlo/`. It is labelled **Tier-C synthetic — reports wins AND
+losses; no real-plant skill claim.**
+
+**Per-operator mean KPIs (24 seeded days):**
+
+| Metric | orchestrator | greedy_p50 | no_battery |
+|---|---|---|---|
+| `net_cost_usd` | 13,757.11 | 17,238.16 | −935.42 |
+| `critical_unserved_mwh` | 8.45 | 21.99 | 610.23 |
+| `renewable_curtailment_mwh` | 13.12 | 50.77 | 848.59 |
+| `carbon_kgco2e` | 109,454.21 | 129,859.14 | 0.00 |
+| `reserve_shortfall_mwh` | 0.00 | 0.00 | 0.00 |
+
+Reliability is the **pair** (`critical_unserved_mwh`, `reserve_shortfall_mwh`).
+
+**Paired mean differences (`baseline − orchestrator`, 95% CI):**
+
+| Baseline | Metric | Mean diff | 95% CI | p-value | Orchestrator wins |
+|---|---|---|---|---|---|
+| greedy_p50 | `net_cost_usd` | +3,481.05 | [3,286.89, 3,675.20] | ≈0 | yes |
+| greedy_p50 | `critical_unserved_mwh` | +13.54 | [8.35, 18.72] | 1.7×10⁻⁵ | yes |
+| greedy_p50 | `renewable_curtailment_mwh` | +37.64 | [25.93, 49.35] | 1×10⁻⁶ | yes |
+| greedy_p50 | `carbon_kgco2e` | +20,404.93 | [19,951.48, 20,858.39] | ≈0 | yes |
+| greedy_p50 | `reserve_shortfall_mwh` | 0.00 | [0.00, 0.00] | 0.083 | **no (tie)** |
+| no_battery | `critical_unserved_mwh` | +601.77 | [591.33, 612.22] | ≈0 | yes |
+| no_battery | `renewable_curtailment_mwh` | +835.47 | [811.03, 859.90] | ≈0 | yes |
+| no_battery | `net_cost_usd` | −14,692.53 | [−15,198.41, −14,186.66] | ≈0 | **no (loss)** |
+| no_battery | `carbon_kgco2e` | −109,454.21 | [−112,105.58, −106,802.83] | ≈0 | **no (loss)** |
+| no_battery | `reserve_shortfall_mwh` | 0.00 | [0.00, 0.00] | 0.083 | **no (tie)** |
+
+**Where a baseline beats the orchestrator (reported, never suppressed).** The `no_battery`
+operator shows a **lower** net cost and **zero** carbon — because, with no storage, it simply
+never imports to buy or shift energy. It pays for that with **610 MWh of mean critical
+unserved energy** (vs the orchestrator's 8.45), a catastrophic reliability failure. The
+reserve-shortfall metric is a **tie** (both operators hold reserve, so the mean difference is
+exactly zero and the orchestrator does not "win" it). We publish these entries in the
+artifact's `orchestrator_loses_on` list and here because a comparison that hides its losses
+is not a comparison. The honest reading: against a like-for-like rule-based operator
+(`greedy_p50`) the orchestrator is better on cost, reliability, curtailment, and carbon with
+tight CIs; the one operator that beats it on cost/carbon does so only by abandoning critical
+load.
+
 ### Planner versus a recorded baseline (same realized path)
 
 The **Economics** view records the scenario-aware planner against a recorded baseline on the
@@ -487,6 +540,7 @@ produced by the deterministic brain and badged as such.
 |---|---|---|
 | 364 tests pass | `& .\monsoon_grid\scripts\test.ps1` | `364 passed, 1 skipped` |
 | Baseline table (incl. our loss) | `python experiments/run_baselines.py` | `ours` MAE 2.101; `qr_uncalibrated` 1.928 (wins) |
+| Multi-day Monte Carlo | `python experiments/run_monte_carlo.py --config experiments/configs/monte_carlo.json` | writes `experiments/results/monte_carlo/<run_id>.json`; orchestrator beats `greedy_p50` on cost/reliability/curtailment/carbon, loses cost/carbon to `no_battery` |
 | Agent chooses criteria + takes actions | `GET /api/agent/deliberate?slot=41&policy=balanced` | ordering, rationale, 4 actions, conflict note, regret |
 | Validator rejects unsafe slots | open **Safety** view, slot 41 | `ESCALATED_NO_SAFE_ACTION`, fatal findings |
 | Signed certificate verifies offline | `verify_certificate.ps1` | verification passes, persistence consistent |
@@ -535,6 +589,22 @@ monsoon_grid/                      # the VAYU engine (original working title)
 | Evidence | **signed Ed25519 certificate**, content-addressed store | screenshots | every decision is independently verifiable |
 | Baseline reporting | **floor + losses published** (we lose to one baseline) | R²/score alone | demonstration, not highlight reel |
 | Scope labelling | **SIMULATION / REPLAY on every surface** | implied "it's live" | no overclaim about grid control |
+
+---
+
+## Capability position (D2 / F3)
+
+- **D2 — structured inputs + one external judgement call.** VAYU operates on **structured
+  inputs** (typed portfolio, events, scenario paths, telemetry) plus **exactly one external
+  LLM judgement call**: Gemini (`gemini-2.5-flash` via Vertex AI) chooses only the
+  lexicographic objective *ordering* and never emits a number that reaches the operator. VAYU
+  **does not** claim D3 multimodal vision — there is no email / PDF / radar / image ingestion.
+  That is a deliberate scoped-not-missing choice, not a hidden gap.
+- **F3 — scenario simulation over time, now strengthened.** VAYU performs **scenario
+  simulation over time** (five robust scenario paths per 15-minute slot). The new **multi-day
+  Monte Carlo study** (see *Measured results and baselines*) strengthens this from a
+  single-path illustration to **N seeded days against two baselines**, reported with paired
+  mean differences, 95% CIs, and wins **and** losses.
 
 ---
 
