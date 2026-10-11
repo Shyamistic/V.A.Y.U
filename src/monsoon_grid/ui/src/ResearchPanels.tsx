@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Battery, Check, Cpu, CircuitBoard, FlaskConical, Network, ScalingIcon, ShieldAlert, X } from 'lucide-react';
-import type { Metric, Workspace } from './types';
+import type { Metric, MonteCarloResult, Workspace } from './types';
 
 const HardwareScene = lazy(() => import('./HardwareScene').then(module => ({ default: module.HardwareScene })));
 const HARDWARE_IMAGE = 'assets/hardware-bom.png';
@@ -40,7 +40,7 @@ export function ResearchPanels({ view, workspace, slot, onSlot, theme }: { view:
   if (view === 'Science') {
     const report = workspace.science.reports.find(item => item.experiment === experiment && item.experiment !== 'fetch_datasets') ?? workspace.science.reports.find(item => item.experiment !== 'fetch_datasets') ?? workspace.science.reports[0];
     const selectable = workspace.science.reports.filter(item => item.experiment !== 'fetch_datasets');
-    return <><div className="science-banner"><FlaskConical size={27} /><div><h2>Research evidence, not plant validation</h2><p>Stored experiments / chronological latest run / Phase 2 not integrated into dispatch</p></div></div><div className="warning">Synthetic results validate machinery, numerical demonstrations and interfaces only. No Indian-plant or hardware validation claim.</div><div className="panel-controls"><label>Recorded experiment<select value={experiment} onChange={event => setExperiment(event.target.value)}>{selectable.map(item => <option key={item.experiment} value={item.experiment}>{item.experiment}</option>)}</select></label><span className="meta">{String(report?.result.created_at ?? 'Unavailable')}</span></div>{report ? <><div className="detail-grid"><div><span>Run ID</span><strong className="mono">{String(report.result.run_id)}</strong></div><div><span>Measured experiment duration</span><strong>{format(Number(report.result.wall_clock_seconds))} s</strong></div><div><span>Recorded runs</span><strong>{report.history_count}</strong></div></div><p className="mono">{report.artifact}</p><details className="artifact-details" open><summary>Recorded result</summary><pre>{JSON.stringify(report.result, null, 2)}</pre></details><p className="hash">Artifact digest: {report.artifact_digest}</p></> : <p>Scientific artifacts unavailable in this deployment.</p>}{workspace.science.issues.map(issue => <p className="error" key={issue}>{issue}</p>)}</>;
+    return <><div className="science-banner"><FlaskConical size={27} /><div><h2>Research evidence, not plant validation</h2><p>Stored experiments / chronological latest run / Phase 2 not integrated into dispatch</p></div></div><div className="warning">Synthetic results validate machinery, numerical demonstrations and interfaces only. No Indian-plant or hardware validation claim.</div><div className="panel-controls"><label>Recorded experiment<select value={experiment} onChange={event => setExperiment(event.target.value)}>{selectable.map(item => <option key={item.experiment} value={item.experiment}>{item.experiment}</option>)}</select></label><span className="meta">{String(report?.result.created_at ?? 'Unavailable')}</span></div>{report ? <><div className="detail-grid"><div><span>Run ID</span><strong className="mono">{String(report.result.run_id)}</strong></div><div><span>Measured experiment duration</span><strong>{format(Number(report.result.wall_clock_seconds))} s</strong></div><div><span>Recorded runs</span><strong>{report.history_count}</strong></div></div><p className="mono">{report.artifact}</p>{report.experiment === 'monte_carlo' ? <MonteCarloView result={report.result as unknown as MonteCarloResult} /> : null}<details className="artifact-details" open><summary>Recorded result</summary><pre>{JSON.stringify(report.result, null, 2)}</pre></details><p className="hash">Artifact digest: {report.artifact_digest}</p></> : <p>Scientific artifacts unavailable in this deployment.</p>}{workspace.science.issues.map(issue => <p className="error" key={issue}>{issue}</p>)}</>;
   }
 
   if (view === 'Bench') {
@@ -84,6 +84,26 @@ export function ResearchPanels({ view, workspace, slot, onSlot, theme }: { view:
       <div className="table-scroll"><table><tbody>{Object.entries(workspace.hardware.config).map(([name, value]) => <tr key={name}><td className="mono">{name}</td><td>{value}</td><td>Declared configuration, not a measurement</td></tr>)}</tbody></table></div></>;
   }
   return null;
+}
+
+function MonteCarloView({ result }: { result: MonteCarloResult }) {
+  // Reads only top-level fields: experiment_reports strips 'config'/'environment'
+  // before the UI sees the report, so n_days/seed/day_seeds/per_operator_means/
+  // paired_comparisons/orchestrator_loses_on are all consumed from the top level.
+  const operators = result.operators ?? [];
+  const metrics = result.metrics ?? [];
+  const baselines = operators.filter(op => op !== 'orchestrator');
+  const losses = result.orchestrator_loses_on ?? [];
+  return <>
+    <div className="warning">{result.note}</div>
+    <div className="detail-grid"><div><span>Seeded days</span><strong>{result.n_days}</strong></div><div><span>Config seed</span><strong className="mono">{result.seed}</strong></div><div><span>Policy mode</span><strong>{result.policy_mode}</strong></div></div>
+    <div className="section-heading"><h2>Per-operator mean KPIs</h2><span className="meta">MEAN OVER {result.n_days} SEEDED DAYS</span></div>
+    <div className="table-scroll"><table><thead><tr><th>Metric</th>{operators.map(op => <th key={op}>{op}</th>)}</tr></thead><tbody>{metrics.map(metric => <tr key={metric}><td className="mono">{metric}</td>{operators.map(op => <td key={op}>{format(result.per_operator_means?.[op]?.[metric] ?? null, 3)}</td>)}</tr>)}</tbody></table></div>
+    <div className="section-heading"><h2>Paired mean difference vs orchestrator</h2><span className="meta">BASELINE - ORCHESTRATOR / 95% CI / LOWER IS BETTER</span></div>
+    <div className="table-scroll"><table><thead><tr><th>Baseline</th><th>Metric</th><th>Mean diff</th><th>95% CI</th><th>p-value</th><th>Orchestrator wins</th></tr></thead><tbody>{baselines.flatMap(baseline => metrics.map(metric => { const c = result.paired_comparisons?.[baseline]?.[metric]; return c ? <tr key={`${baseline}:${metric}`}><td>{baseline}</td><td className="mono">{metric}</td><td>{format(c.mean_difference, 3)}</td><td className="mono">[{format(c.ci95_low, 2)}, {format(c.ci95_high, 2)}]</td><td>{format(c.p_value, 4)}</td><td><span className={`preserved-flag ${c.orchestrator_wins ? 'yes' : 'no'}`}>{c.orchestrator_wins ? 'YES' : 'NO'}</span></td></tr> : null; }))}</tbody></table></div>
+    <div className="section-heading"><h2>Where a baseline beats the orchestrator</h2><span className="meta">REPORTED, NEVER SUPPRESSED</span></div>
+    {losses.length ? <div className="table-scroll"><table><thead><tr><th>Baseline</th><th>Metric</th></tr></thead><tbody>{losses.map(([baseline, metric]) => <tr key={`${baseline}:${metric}`}><td>{baseline}</td><td className="mono">{metric}</td></tr>)}</tbody></table></div> : <p>No baseline beats the orchestrator on any reported metric.</p>}
+  </>;
 }
 
 const BOM = [

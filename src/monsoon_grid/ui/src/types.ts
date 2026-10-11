@@ -40,6 +40,20 @@ export type ScaleProjection = {
 export type ForecastBand = { asset_id: string | null; forecast_id: string; variable: string; model_version: string; unit: string; p10: number[]; p50: number[]; p90: number[] };
 export type FixtureEvent = { event_id: string; event_type: string; start_slot: number; end_slot: number; affected_ids: string[]; details: Record<string, unknown> };
 export type ScientificReport = { experiment: string; artifact: string; artifact_digest: string; history_count: number; result: Record<string, unknown> };
+export type PairedComparison = { mean_difference: number; ci95_low: number; ci95_high: number; t_stat: number; p_value: number; orchestrator_wins: boolean };
+export type MonteCarloResult = {
+  n_days: number;
+  seed: number;
+  day_seeds: number[];
+  operators: string[];
+  policy_mode: string;
+  metrics: string[];
+  per_operator_means: Record<string, Record<string, number>>;
+  per_operator_per_day: Record<string, Record<string, number>[]>;
+  paired_comparisons: Record<string, Record<string, PairedComparison>>;
+  orchestrator_loses_on: [string, string][];
+  note: string;
+};
 export type BenchFrame = { frame_sequence: number; timestamp_utc: string; bus_voltage_v: number; bus_current_a: number; bus_power_w: number; bench_state: string; failsafe_tripped: boolean; relay_critical_enabled: boolean; relay_flex_a_enabled: boolean; relay_flex_b_enabled: boolean; digest: string };
 export type Session = { actor_id: string; tenant_id: string; roles: string[]; auth_method: string; environment: string };
 export type AgentStep = { iteration: number; objective_order: string[]; rationale: string; confidence: number; validator_status: string; critical_unserved_mwh: number; net_cost_usd: number; accepted: boolean; revised_reason: string | null };

@@ -141,7 +141,7 @@ function AgentView({ decision, busy, error, slot }: { decision: AgentDecision | 
     <div className="section-heading"><h2>Actions the agent took</h2><span className="meta">REALIZED DISPATCH / SIMULATED TWIN</span></div>
     <div className="agent-conflict"><Zap size={15} />{d.conflict_note}</div>
     <div className="agent-actions">{d.actions.map((a, i) => {
-      const icon = a.category === 'battery' ? <Battery size={18} /> : a.category === 'market' ? <Wallet size={18} /> : a.category === 'renewable' ? <Sun size={18} /> : <Activity size={18} />;
+      const icon = a.category === 'battery' ? <Battery size={18} /> : a.category === 'market' ? <Wallet size={18} /> : a.category === 'renewable' ? <Sun size={18} /> : a.category === 'maintenance' ? <CalendarClock size={18} /> : <Activity size={18} />;
       const idle = a.magnitude_mw <= 0.05;
       return <div key={i} className={`agent-action ${a.category} ${idle ? 'idle' : ''}`}>
         <div className="agent-action-head">{icon}<strong>{a.action}</strong>{!idle && <span className="agent-action-mag">{number(a.magnitude_mw)} {a.unit}</span>}</div>

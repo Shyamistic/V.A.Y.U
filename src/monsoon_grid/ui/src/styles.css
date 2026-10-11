@@ -481,6 +481,7 @@ footer span:last-child { margin-left: auto; font-size: 9px; letter-spacing: 1px;
 .agent-action.market { border-top-color: var(--amber); }
 .agent-action.renewable { border-top-color: var(--cyan); }
 .agent-action.demand { border-top-color: #b98cff; }
+.agent-action.maintenance { border-top-color: #e0923b; }
 .agent-action.idle { opacity: .62; }
 .agent-action-head { display: flex; align-items: center; gap: 9px; }
 .agent-action-head svg { color: var(--ink-faint); }
